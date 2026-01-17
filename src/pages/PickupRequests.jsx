@@ -185,84 +185,86 @@ const PickupRequests = () => {
       </div>
 
       {/* 3. Table Structure */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 mt-5 min-h-[calc(100vh-38vh)]">
-        {/* Table Header */}
-        <div className="flex items-center p-4 border-b bg-[#1318420D] text-xs font-semibold uppercase text-gray-600">
-          <input
-            type="checkbox"
-            className="mr-4 h-4 w-4 text-blue-600 border-gray-300 rounded"
-          />
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mt-5 overflow-hidden">
+        <div className="overflow-x-auto">
+          {/* Table Header */}
+          <div className="flex items-center p-4 border-b bg-[#1318420D] text-xs font-semibold uppercase text-gray-600">
+            <input
+              type="checkbox"
+              className="mr-4 h-4 w-4 text-blue-600 border-gray-300 rounded flex-shrink-0"
+            />
 
-          {/* Columns */}
-          <div className="grid grid-cols-8 gap-4 w-full">
-            <div className="cursor-pointer hover:text-gray-800">PICKUP ID</div>
-            <div className="cursor-pointer hover:text-gray-800">REQUESTED ON</div>
-            <div className="cursor-pointer hover:text-gray-800">STATUS</div>
-            <div className="cursor-pointer hover:text-gray-800">PICKUP LOCATION</div>
-            <div className="cursor-pointer hover:text-gray-800">PICKED / EXPECTED AWBS</div>
-            <div className="cursor-pointer hover:text-gray-800">PICKUP DATE</div>
-            <div className="cursor-pointer hover:text-gray-800">LAST UPDATE</div>
-            <div className="text-right">ACTIONS</div>
+            {/* Columns */}
+            <div className="grid grid-cols-8 gap-4 w-full">
+              <div className="cursor-pointer hover:text-gray-800">PICKUP ID</div>
+              <div className="cursor-pointer hover:text-gray-800">REQUESTED ON</div>
+              <div className="cursor-pointer hover:text-gray-800">STATUS</div>
+              <div className="cursor-pointer hover:text-gray-800">PICKUP LOCATION</div>
+              <div className="cursor-pointer hover:text-gray-800">PICKED / EXPECTED AWBS</div>
+              <div className="cursor-pointer hover:text-gray-800">PICKUP DATE</div>
+              <div className="cursor-pointer hover:text-gray-800">LAST UPDATE</div>
+              <div className="text-right">ACTIONS</div>
+            </div>
           </div>
-        </div>
 
-        {/* Table Body */}
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        ) : pickupRequests && pickupRequests.length > 0 ? (
-          pickupRequests.map((request) => {
-            const requestedDateTime = formatDateTime(request.requestedOn);
-            const pickupDateTime = formatDateTime(request.pickupDate);
-            const lastUpdateDateTime = formatDateTime(request.lastUpdate);
-            
-            return (
-              <div key={request.id} className="flex items-center p-4 border-b hover:bg-blue-50 transition duration-100">
-                <input type="checkbox" className="mr-4 h-4 w-4 text-blue-600 border-gray-300 rounded" />
-                <div className="grid grid-cols-8 gap-4 w-full text-sm text-gray-700">
-                  <div className="font-medium text-blue-600 cursor-pointer hover:underline">
-                    {request.id}
-                  </div>
-                  <div>
-                    <div>{requestedDateTime.date}</div>
-                    <div className="text-xs text-gray-500">{requestedDateTime.time}</div>
-                  </div>
-                  <div>
-                    <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
-                      {request.status?.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="truncate" title={request.location}>
-                    {request.location}
-                  </div>
-                  <div>{request.awbs}</div>
-                  <div>
-                    <div>{pickupDateTime.date}</div>
-                    <div className="text-xs text-gray-500">{pickupDateTime.time}</div>
-                  </div>
-                  <div>
-                    <div>{lastUpdateDateTime.date}</div>
-                    <div className="text-xs text-gray-500">{lastUpdateDateTime.time}</div>
-                  </div>
-                  <div className="text-right">
-                    <button 
-                      onClick={() => navigate(`/pickup-request/${request.id}`)}
-                      className="text-blue-500 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
-                    >
-                      <Eye size={14} />
-                      View
-                    </button>
+          {/* Table Body */}
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          ) : pickupRequests && pickupRequests.length > 0 ? (
+            pickupRequests.map((request) => {
+              const requestedDateTime = formatDateTime(request.requestedOn);
+              const pickupDateTime = formatDateTime(request.pickupDate);
+              const lastUpdateDateTime = formatDateTime(request.lastUpdate);
+              
+              return (
+                <div key={request.id} className="flex items-center p-4 border-b hover:bg-blue-50 transition duration-100">
+                  <input type="checkbox" className="mr-4 h-4 w-4 text-blue-600 border-gray-300 rounded flex-shrink-0" />
+                  <div className="grid grid-cols-8 gap-4 w-full text-sm text-gray-700">
+                    <div className="font-medium text-blue-600 cursor-pointer hover:underline">
+                      {request.id || request.pickupId || 'N/A'}
+                    </div>
+                    <div>
+                      <div>{requestedDateTime.date}</div>
+                      <div className="text-xs text-gray-500">{requestedDateTime.time}</div>
+                    </div>
+                    <div>
+                      <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
+                        {request.status?.replace('_', ' ').toUpperCase() || 'PENDING'}
+                      </span>
+                    </div>
+                    <div className="truncate" title={request.location || request.pickupLocation?.name || 'N/A'}>
+                      {request.location || request.pickupLocation?.name || 'N/A'}
+                    </div>
+                    <div>{request.awbs || `${request.pickedAWBs || 0} / ${request.expectedAWBs || 0}`}</div>
+                    <div>
+                      <div>{pickupDateTime.date}</div>
+                      <div className="text-xs text-gray-500">{pickupDateTime.time}</div>
+                    </div>
+                    <div>
+                      <div>{lastUpdateDateTime.date}</div>
+                      <div className="text-xs text-gray-500">{lastUpdateDateTime.time}</div>
+                    </div>
+                    <div className="text-right">
+                      <button 
+                        onClick={() => navigate(`/pickup-request/${request.id || request._id}`)}
+                        className="text-blue-500 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                      >
+                        <Eye size={14} />
+                        View
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="flex justify-center items-center py-20 text-lg font-medium text-gray-500">
-            No Records Found
-          </div>
-        )}
+              );
+            })
+          ) : (
+            <div className="flex justify-center items-center py-20 text-lg font-medium text-gray-500">
+              No Records Found
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

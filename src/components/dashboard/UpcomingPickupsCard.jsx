@@ -133,7 +133,7 @@ const UpcomingPickupsCard = () => {
       )}
 
       {/* Table container */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" style={{ position: 'relative' }}>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left border-b">
@@ -219,36 +219,57 @@ const UpcomingPickupsCard = () => {
                     </td>
 
                     {/* Print */}
-                    <td className="py-3 px-2 relative">
-                      <div className="relative">
+                    <td className="py-3 px-2">
+                      <div className="relative inline-block">
                         <button
-                          onClick={() => setShowPrintMenu(showPrintMenu === idx ? null : idx)}
-                          className="flex items-center gap-2 text-xs text-blue-600 cursor-pointer hover:text-blue-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPrintMenu(showPrintMenu === idx ? null : idx);
+                          }}
+                          className="flex items-center gap-2 text-xs text-blue-600 cursor-pointer hover:text-blue-700 z-10 relative"
                         >
                           <PrinterCheck className="w-4" /> Print <ChevronDown className="w-4"/>
                         </button>
                         
                         {showPrintMenu === idx && (
-                          <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                            <button
-                              onClick={() => handlePrint(pickup.orderNumber, 'label')}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                            >
-                              Print Label
-                            </button>
-                            <button
-                              onClick={() => handlePrint(pickup.orderNumber, 'manifest')}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                            >
-                              Print Manifest
-                            </button>
-                            <button
-                              onClick={() => handlePrint(pickup.orderNumber, 'invoice')}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                            >
-                              Print Invoice
-                            </button>
-                          </div>
+                          <>
+                            {/* Backdrop to close menu */}
+                            <div 
+                              className="fixed inset-0 z-[9998]"
+                              onClick={() => setShowPrintMenu(null)}
+                              style={{ backgroundColor: 'transparent' }}
+                            />
+                            {/* Dropdown menu */}
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-[9999]" style={{ position: 'absolute' }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrint(pickup.orderNumber, 'label');
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                              >
+                                Print Label
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrint(pickup.orderNumber, 'manifest');
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                              >
+                                Print Manifest
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrint(pickup.orderNumber, 'invoice');
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                              >
+                                Print Invoice
+                              </button>
+                            </div>
+                          </>
                         )}
                       </div>
                     </td>

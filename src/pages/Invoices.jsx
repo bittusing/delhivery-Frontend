@@ -74,19 +74,15 @@ const InvoicesPage = () => {
 
   const handleDownload = async (invoiceId) => {
     try {
-      const blob = await invoiceService.downloadInvoice(invoiceId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoice-${invoiceId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // For now, open invoice details page since PDF generation is not implemented
+      // Extract order number from invoice ID
+      const orderNumber = invoiceId.replace(/^INV/, '');
+      navigate(`/order-details?id=${orderNumber}`);
     } catch (err) {
       console.error('Download error:', err);
       // Fallback: Open invoice page
-      navigate(`/invoice/${invoiceId}`);
+      const orderNumber = invoiceId.replace(/^INV/, '');
+      navigate(`/order-details?id=${orderNumber}`);
     }
   };
 
@@ -199,7 +195,10 @@ const InvoicesPage = () => {
                 <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
                   <td 
                     className="px-6 py-4 font-bold text-blue-600 hover:underline cursor-pointer"
-                    onClick={() => navigate(`/invoice/${invoice.invoiceId}`)}
+                    onClick={() => {
+                      const orderNumber = invoice.invoiceId.replace(/^INV/, '');
+                      navigate(`/order-details?id=${orderNumber}`);
+                    }}
                   >
                     {invoice.invoiceId}
                   </td>

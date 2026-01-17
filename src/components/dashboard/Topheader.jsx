@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { useDashboard } from '../../hooks/useDashboard';
 
 // Card component for individual metrics
@@ -31,25 +33,46 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
+// Format date helper
+const formatDate = (date) => {
+  if (!date) return '';
+  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+};
+
+// Custom date input component
+const CustomDateInput = React.forwardRef(({ value, onClick }, ref) => {
+  // Format the date range for display
+  const displayValue = value || 'Select date range';
+  
+  return (
+    <div
+      ref={ref}
+      onClick={onClick}
+      className="flex items-center p-2 bg-white rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:border-indigo-400 transition duration-150 h-14"
+    >
+      <span className="text-gray-700 font-medium mr-4">{displayValue}</span>
+      <svg className="w-5 h-5 text-[#146BE6] hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+    </div>
+  );
+});
+
 // Main dashboard component
 const Topheader = () => {
   const navigate = useNavigate();
   const { stats, loading, error, fetchStats } = useDashboard();
-  const [dateRange, setDateRange] = useState("");
+  
+  // Date range state
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date;
+  });
+  const [endDate, setEndDate] = useState(new Date());
 
+  // Update stats when date range changes
   useEffect(() => {
-    // Set date range for last 30 days
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
-    
-    const startStr = startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-    const endStr = endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-    setDateRange(`${startStr} - ${endStr}`);
-
-    // Fetch stats
     fetchStats();
-  }, [fetchStats]);
+  }, [startDate, endDate, fetchStats]);
 
   return (
     <div className='mb-6'>
@@ -79,10 +102,18 @@ const Topheader = () => {
           </button>
         </div>
         
-        <div className="flex items-center p-2 bg-white rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:border-indigo-400 transition duration-150 h-14">
-          <span className="text-gray-700 font-medium mr-4">{dateRange}</span>
-          <svg className="w-5 h-5 text-[#146BE6] hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-        </div>
+        {/* Date Range Picker */}
+        <DatePicker
+          selectsRange={true}
+          startDate={startDate}
+          endDate={endDate}
+          onChange={(update) => {
+            setStartDate(update[0] || new Date());
+            setEndDate(update[1] || new Date());
+          }}
+          customInput={<CustomDateInput />}
+          dateFormat="MM/dd/yyyy"
+        />
       </div>
 
       {/* Error Message */}
