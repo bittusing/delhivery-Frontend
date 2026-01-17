@@ -1,6 +1,64 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useWallet } from '../hooks/useWallet';
+import { LogOut } from 'lucide-react';
+import RechargeModal from './Wallet/RechargeModal';
 
 export default function Header({setIsSidebarOpen}) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const { user, logout } = useAuth();
+  const { balance, fetchBalance } = useWallet();
+  const navigate = useNavigate();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (user?.name) {
+      const names = user.name.split(' ');
+      if (names.length >= 2) {
+        return `${names[0][0]}${names[1][0]}`.toUpperCase();
+      }
+      return user.name.substring(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
+
+  // Format balance amount
+  const formatBalance = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount || 0);
+  };
+
+  // Handle recharge success
+  const handleRechargeSuccess = () => {
+    fetchBalance();
+  };
+
   return (
     <nav className="flex items-center justify-between py-4 xl:py-6">
       {/* Left Section: Menu and Search Bar */}
@@ -39,9 +97,16 @@ export default function Header({setIsSidebarOpen}) {
           </div>
           <div>
             <div className="text-[10px] lg:text-xs xl:text-sm text-[#131842] font-normal leading-5">Wallet Balance</div>
-            <div className="font-semibold text-sm lg:text-base xl:text-lg text-gray-800 leading-5">₹48,234.84</div>
+            <div className="font-semibold text-sm lg:text-base xl:text-lg text-gray-800 leading-5">
+              {formatBalance(balance)}
+            </div>
           </div>
-          <a href="#" className="text-[#146BE6] hover:text-blue-600 text-[10px] lg:text-xs xl:text-sm font-semibold pl-2">Recharge</a>
+          <button
+            onClick={() => setIsRechargeModalOpen(true)}
+            className="text-[#146BE6] hover:text-blue-600 text-[10px] lg:text-xs xl:text-sm font-semibold pl-2 cursor-pointer transition-colors"
+          >
+            Recharge
+          </button>
         </div>
         
         {/* Divider */}
@@ -62,12 +127,42 @@ export default function Header({setIsSidebarOpen}) {
 
         <div className="h-12 w-px bg-gray-300"></div>
 
+        {/* Profile Picture with Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="w-8 xl:w-10 h-8 xl:h-10 rounded-full overflow-hidden border-2 border-white shadow-md cursor-pointer hover:ring-2 hover:ring-blue-200 transition-all focus:outline-none"
+          >
+            {user?.name ? (
+              <div className="w-full h-full bg-[#1a2b4b] flex items-center justify-center text-white font-bold text-xs xl:text-sm">
+                {getUserInitials()}
+              </div>
+            ) : (
+              <img src="/images/person-man.png" alt="Profile" className="object-cover w-full h-full"/>
+            )}
+          </button>
 
-        {/* Profile Picture */}
-        <div className="w-8 xl:w-10 h-8 xl:h-10 rounded-full overflow-hidden border-2 border-white shadow-md">
-          <img src="/images/person-man.png" alt="Profile" className="object-cover w-full h-full"/>
+          {/* Dropdown Menu */}
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+              <button
+                onClick={handleLogout}
+                className="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-3"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Recharge Modal */}
+      <RechargeModal
+        isOpen={isRechargeModalOpen}
+        onClose={() => setIsRechargeModalOpen(false)}
+        onSuccess={handleRechargeSuccess}
+      />
     </nav>
   );
 }
