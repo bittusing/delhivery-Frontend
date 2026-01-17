@@ -1,33 +1,56 @@
-import React from 'react';
-
+import React, { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useDashboard } from '../../hooks/useDashboard';
 
 // Card component for individual metrics
 const MetricCard = ({ title, value, percentage, subText, icon, code }) => (
   <div className="bg-white p-4 rounded-lg shadow-md min-w-[200px] flex-1">
     <div className='flex justify-between'>
       <div className={`flex flex-col border-l-4 pl-3`} style={{ borderColor: code }}>
-      <span className="text-sm text-gray-500 font-medium mb-1">{title}</span>
-      <p className="text-3xl font-bold text-gray-800">
-        {value}
-        {percentage && <span className="text-xl ml-2 font-semibold text-gray-500">({percentage})</span>}
-      </p>
+        <span className="text-sm text-gray-500 font-medium mb-1">{title}</span>
+        <p className="text-3xl font-bold text-gray-800">
+          {value}
+          {percentage && <span className="text-xl ml-2 font-semibold text-gray-500">({percentage}%)</span>}
+        </p>
+      </div>
+      <div>
+        <img src={`/images/icon/${icon}.png`} alt="know-more" />
+      </div>
     </div>
-    <div>
-      <img src={`/images/icon/${icon}.png`} alt="know-more" />
-    </div>
-    </div>
-
-      <p className="text-xs text-gray-400 mt-1">{subText}</p>
+    <p className="text-xs text-gray-400 mt-1">{subText}</p>
   </div>
 );
 
+// Format currency
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(amount || 0);
+};
+
 // Main dashboard component
 const Topheader = () => {
-  const dateRange = "10/14/2025 - 11/13/2025";
+  const { stats, loading, error, fetchStats } = useDashboard();
+  const [dateRange, setDateRange] = useState("");
+
+  useEffect(() => {
+    // Set date range for last 30 days
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    const startStr = startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    const endStr = endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    setDateRange(`${startStr} - ${endStr}`);
+
+    // Fetch stats
+    fetchStats();
+  }, [fetchStats]);
 
   return (
     <div className='mb-6'>
-      
       {/* --- Header Section --- */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex space-x-4">
@@ -51,39 +74,85 @@ const Topheader = () => {
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          {error}
+        </div>
+      )}
+
       {/* --- Metrics Cards Section --- */}
-      <div className="flex flex-wrap gap-6">
-        <MetricCard
-          title="Total Shipments"
-          value="1256"
-          subText="(Total forward shipments)"
-          icon={"shipments-icon"}
-          code="#4F58BC"
-        />
-        <MetricCard
-          title="Delivered Shipments"
-          value="1256"
-          percentage="20%"
-          subText="(Total forward delivered orders)"
-          icon={"delivered-icon"}
-          code="#55B4A9"
-        />
-        <MetricCard
-          title="Total Revenue"
-          value="₹48,234"
-          subText="(Value of delivered orders)"
-          icon={"revenue-icon"}
-          code="#4D66FB"
-        />
-        <MetricCard
-          title="Total RTO"
-          value="60"
-          percentage="4%"
-          subText="(Orders returned to origin)"
-          icon={"rto-icon"}
-          code="#749DDF"
-        />
-      </div>
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      ) : stats ? (
+        <div className="flex flex-wrap gap-6">
+          <MetricCard
+            title="Total Shipments"
+            value={stats.totalShipments || 0}
+            subText="(Total forward shipments)"
+            icon={"shipments-icon"}
+            code="#4F58BC"
+          />
+          <MetricCard
+            title="Delivered Shipments"
+            value={stats.deliveredShipments || 0}
+            percentage={stats.deliveredPercentage || 0}
+            subText="(Total forward delivered orders)"
+            icon={"delivered-icon"}
+            code="#55B4A9"
+          />
+          <MetricCard
+            title="Total Revenue"
+            value={formatCurrency(stats.totalRevenue)}
+            subText="(Value of delivered orders)"
+            icon={"revenue-icon"}
+            code="#4D66FB"
+          />
+          <MetricCard
+            title="Total RTO"
+            value={stats.rtoOrders || 0}
+            percentage={stats.rtoPercentage || 0}
+            subText="(Orders returned to origin)"
+            icon={"rto-icon"}
+            code="#749DDF"
+          />
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-6">
+          <MetricCard
+            title="Total Shipments"
+            value="0"
+            subText="(Total forward shipments)"
+            icon={"shipments-icon"}
+            code="#4F58BC"
+          />
+          <MetricCard
+            title="Delivered Shipments"
+            value="0"
+            percentage="0"
+            subText="(Total forward delivered orders)"
+            icon={"delivered-icon"}
+            code="#55B4A9"
+          />
+          <MetricCard
+            title="Total Revenue"
+            value="₹0"
+            subText="(Value of delivered orders)"
+            icon={"revenue-icon"}
+            code="#4D66FB"
+          />
+          <MetricCard
+            title="Total RTO"
+            value="0"
+            percentage="0"
+            subText="(Orders returned to origin)"
+            icon={"rto-icon"}
+            code="#749DDF"
+          />
+        </div>
+      )}
     </div>
   );
 };
