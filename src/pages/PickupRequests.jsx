@@ -1,50 +1,79 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Info,
   Plus,
   ChevronDown,
+  Loader2,
+  Eye
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-const mockData = [
-  // Example data structure, currently empty to match your screenshot
-  /*
-  {
-    id: 'PR1001',
-    requestedOn: '08 Nov 2025',
-    status: 'Scheduled',
-    location: 'Warehouse A',
-    awbs: '5 / 10',
-    pickupDate: '10 Nov 2025',
-    lastUpdate: '09 Nov 2025',
-  },
-  */
-];
+import { usePickupRequests } from "../hooks/usePickupRequests";
 
 // Helper function to format date
 const formatDate = (date) => {
   if (!date) return 'Select date';
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-// Helper Component for Dropdowns
-const Dropdown = ({ label, icon: Icon }) => (
-  <div className="flex items-center space-x-1 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-150">
-    {Icon && <Icon size={16} className="text-gray-500" />}
-    <span className="text-sm font-medium text-gray-700">{label}</span>
-    <ChevronDown size={14} className="text-gray-500" />
-  </div>
-);
+const formatDateTime = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return {
+    date: date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    time: date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+  };
+};
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'scheduled':
+      return 'bg-blue-100 text-blue-800';
+    case 'picked_up':
+      return 'bg-green-100 text-green-800';
+    case 'cancelled':
+      return 'bg-red-100 text-red-800';
+    case 'completed':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-yellow-100 text-yellow-800';
+  }
+};
 
 // Main Component
 const PickupRequests = () => {
-  // State for the date range filter
-  const [startDate, setStartDate] = useState(new Date('2025-11-09'));
-  const [endDate, setEndDate] = useState(new Date('2025-11-23'));
-  const dateRange = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+  const navigate = useNavigate();
+  const { pickupRequests, locations, loading, error, fetchPickupRequests, fetchLocations } = usePickupRequests();
+  
+  // State for filters
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  endDate.setDate(endDate.getDate() + 14); // Default 14 days ahead
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+
+  // Fetch locations on mount
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
+
+  // Fetch pickup requests when filters change
+  useEffect(() => {
+    const filters = {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      status: statusFilter || undefined,
+      location: locationFilter || undefined,
+      search: searchQuery || undefined
+    };
+    
+    fetchPickupRequests(filters);
+  }, [startDate, endDate, statusFilter, locationFilter, searchQuery, fetchPickupRequests]);
 
   // Custom input component for DatePicker
   const CustomInput = React.forwardRef(({ onClick }, ref) => (
@@ -54,7 +83,7 @@ const PickupRequests = () => {
       ref={ref}
     >
       <span className="text-sm font-medium text-white whitespace-nowrap">
-        Pickup Date : {dateRange}
+        Pickup Date : {formatDate(startDate)} to {formatDate(endDate)}
       </span>
     </div>
   ));
@@ -71,88 +100,86 @@ const PickupRequests = () => {
           </button>
         </div>
 
-        <Link to={"/create-pickup-request"} className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-[18px] px-3 rounded-lg shadow-md transition duration-200">
+        <Link 
+          to={"/create-pickup-request"} 
+          className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-[18px] px-3 rounded-lg shadow-md transition duration-200"
+        >
           <Plus size={18} className="mr-2" />
           Create Pickup Request
         </Link>
       </header>
 
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          {error}
+        </div>
+      )}
+
       {/* 2. Controls and Filters */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 flex-wrap gap-3">
         {/* Search Bar */}
-        <div className="flex items-center rounded-lg overflow-hidden ">
+        <div className="flex items-center rounded-lg overflow-hidden">
           <span className="bg-white p-[11px]">
-            <Search size={18} className=" text-black " />
+            <Search size={18} className="text-black" />
           </span>
           <input
             type="text"
             placeholder="Search pickup ID"
-            className="py-[10px] px-4 text-sm focus:bor placeholder-[#131842] bg-[#1318420D] outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="py-[10px] px-4 text-sm focus:outline-none placeholder-[#131842] bg-[#1318420D] w-48"
           />
           <span className="bg-white p-[11px]">
-            <Info size={18} className="text-black " title="View search tips" />
+            <Info size={18} className="text-black" title="View search tips" />
           </span>
         </div>
 
-        {/* Info Icon (Placeholder for bulk actions/info) */}
-
-        {/* Date Range Filter (Matching the screenshot) */}
+        {/* Date Range Filter */}
         <DatePicker
           selectsRange={true}
           startDate={startDate}
           endDate={endDate}
           onChange={(update) => {
-            setStartDate(update[0]);
-            setEndDate(update[1]);
+            setStartDate(update[0] || new Date());
+            setEndDate(update[1] || new Date());
           }}
           customInput={<CustomInput />}
         />
 
         {/* Status Dropdown */}
-        <div class="relative font-medium rounded-lg overflow-hidden">
-          <select class="py-[10px] pl-4  bg-white text-sm font-semibold text-black appearance-none pr-8 focus:outline-none cursor-pointer">
-            <option>Status</option>
-            <option>Status 2</option>
+        <div className="relative font-medium rounded-lg overflow-hidden">
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="py-[10px] pl-4 bg-white text-sm font-semibold text-black appearance-none pr-8 focus:outline-none cursor-pointer min-w-[140px]"
+          >
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="picked_up">Picked Up</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
-          <div class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black">
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="3"
-                d="M19 9l-7 7-7-7"
-              ></path>
-            </svg>
+          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black">
+            <ChevronDown size={16} />
           </div>
         </div>
 
         {/* Location Dropdown */}
-        <div class="relative font-medium rounded-lg overflow-hidden">
-          <select class="py-[10px] pl-4  bg-white text-sm font-semibold text-black appearance-none pr-8 focus:outline-none cursor-pointer">
-            <option>Pickup Location</option>
-            <option>Pickup Location 2</option>
+        <div className="relative font-medium rounded-lg overflow-hidden">
+          <select 
+            value={locationFilter}
+            onChange={(e) => setLocationFilter(e.target.value)}
+            className="py-[10px] pl-4 bg-white text-sm font-semibold text-black appearance-none pr-8 focus:outline-none cursor-pointer min-w-[180px]"
+          >
+            <option value="">All Locations</option>
+            {locations.map((loc, idx) => (
+              <option key={idx} value={loc.name}>{loc.name}</option>
+            ))}
           </select>
-          <div class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black">
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="3"
-                d="M19 9l-7 7-7-7"
-              ></path>
-            </svg>
+          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-black">
+            <ChevronDown size={16} />
           </div>
         </div>
       </div>
@@ -167,61 +194,75 @@ const PickupRequests = () => {
           />
 
           {/* Columns */}
-          <div className="flex items-center justify-between w-full">
-            <div className=" cursor-pointer hover:text-gray-800">
-              PICKUP ID 
-            </div>
-            <div className="cursor-pointer hover:text-gray-800">
-              REQUESTED ON 
-            </div>
-            <div className="cursor-pointer hover:text-gray-800">
-              STATUS 
-            </div>
-            <div className="cursor-pointer hover:text-gray-800">
-              PICKUP LOCATION 
-            </div>
-            <div className="cursor-pointer hover:text-gray-800">
-              PICKED / EXPECTED AWBS
-            </div>
-            <div className="cursor-pointer hover:text-gray-800">
-              PICKUP DATE
-            </div>
-            <div className="cursor-pointer hover:text-gray-800">
-              LAST UPDATE
-            </div>
+          <div className="grid grid-cols-8 gap-4 w-full">
+            <div className="cursor-pointer hover:text-gray-800">PICKUP ID</div>
+            <div className="cursor-pointer hover:text-gray-800">REQUESTED ON</div>
+            <div className="cursor-pointer hover:text-gray-800">STATUS</div>
+            <div className="cursor-pointer hover:text-gray-800">PICKUP LOCATION</div>
+            <div className="cursor-pointer hover:text-gray-800">PICKED / EXPECTED AWBS</div>
+            <div className="cursor-pointer hover:text-gray-800">PICKUP DATE</div>
+            <div className="cursor-pointer hover:text-gray-800">LAST UPDATE</div>
             <div className="text-right">ACTIONS</div>
           </div>
         </div>
 
-        {/* Table Body - "No Records Found" State */}
-        <div className="flex justify-center items-center py-20 text-lg font-medium text-gray-500">
-          No Records Found
-        </div>
-
-        {/* --- If you had data, you'd map over it here --- */}
-        {/*
-        {mockData.map((request) => (
-          <div key={request.id} className="flex items-center p-4 border-b hover:bg-blue-50 transition duration-100">
-            <input type="checkbox" className="mr-4 h-4 w-4 text-blue-600 border-gray-300 rounded" />
-            <div className="grid grid-cols-10 w-full text-sm text-gray-700">
-              <div className="col-span-1 font-medium text-blue-600">{request.id}</div>
-              <div className="col-span-2">{request.requestedOn}</div>
-              <div className="col-span-1">
-                <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                  {request.status}
-                </span>
-              </div>
-              <div className="col-span-2">{request.location}</div>
-              <div className="col-span-1">{request.awbs}</div>
-              <div className="col-span-1">{request.pickupDate}</div>
-              <div className="col-span-1">{request.lastUpdate}</div>
-              <div className="col-span-1 text-right">
-                <button className="text-blue-500 hover:text-blue-700 text-sm">View</button>
-              </div>
-            </div>
+        {/* Table Body */}
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        ))}
-        */}
+        ) : pickupRequests && pickupRequests.length > 0 ? (
+          pickupRequests.map((request) => {
+            const requestedDateTime = formatDateTime(request.requestedOn);
+            const pickupDateTime = formatDateTime(request.pickupDate);
+            const lastUpdateDateTime = formatDateTime(request.lastUpdate);
+            
+            return (
+              <div key={request.id} className="flex items-center p-4 border-b hover:bg-blue-50 transition duration-100">
+                <input type="checkbox" className="mr-4 h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                <div className="grid grid-cols-8 gap-4 w-full text-sm text-gray-700">
+                  <div className="font-medium text-blue-600 cursor-pointer hover:underline">
+                    {request.id}
+                  </div>
+                  <div>
+                    <div>{requestedDateTime.date}</div>
+                    <div className="text-xs text-gray-500">{requestedDateTime.time}</div>
+                  </div>
+                  <div>
+                    <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
+                      {request.status?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="truncate" title={request.location}>
+                    {request.location}
+                  </div>
+                  <div>{request.awbs}</div>
+                  <div>
+                    <div>{pickupDateTime.date}</div>
+                    <div className="text-xs text-gray-500">{pickupDateTime.time}</div>
+                  </div>
+                  <div>
+                    <div>{lastUpdateDateTime.date}</div>
+                    <div className="text-xs text-gray-500">{lastUpdateDateTime.time}</div>
+                  </div>
+                  <div className="text-right">
+                    <button 
+                      onClick={() => navigate(`/pickup-request/${request.id}`)}
+                      className="text-blue-500 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                    >
+                      <Eye size={14} />
+                      View
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="flex justify-center items-center py-20 text-lg font-medium text-gray-500">
+            No Records Found
+          </div>
+        )}
       </div>
     </div>
   );

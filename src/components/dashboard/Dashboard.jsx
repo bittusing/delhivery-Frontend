@@ -5,10 +5,8 @@ import UpcomingPickupsCard from "./UpcomingPickupsCard";
 import YourPerformanceCard from "./YourPerformanceCard";
 
 const Dashboard = () => {
- 
-
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ pointerEvents: 'auto' }}>
       <Topheader />
       <UpcomingPickupsCard />
       {/* <UpcomingPickups /> */}

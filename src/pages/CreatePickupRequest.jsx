@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Clock,
@@ -7,17 +8,21 @@ import {
   Check,
   ChevronLeft,
   Truck,
-  Sun
+  Sun,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
+import { usePickupRequests } from "../hooks/usePickupRequests";
 
-const DateButton = ({ day, date, isActive, onClick }) => (
+const DateButton = ({ day, date, isActive, onClick, isEnabled = true }) => (
   <button
-    className={`flex flex-col items-center justify-center`}
+    className={`flex flex-col items-center justify-center ${!isEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     onClick={onClick}
+    disabled={!isEnabled}
   >
     <span
       className={`text-xs font-semibold opacity-80 mb-2 ${
-        isActive ? " text-blue-600 " : "text-[#131842]"
+        isActive ? "text-blue-600" : "text-[#131842]"
       }`}>
       {day}
     </span>
@@ -32,56 +37,168 @@ const DateButton = ({ day, date, isActive, onClick }) => (
 
 /**
  * Main Component: CreatePickupRequest
- * Replicates the UI from the screenshot using React and Tailwind CSS.
  */
 const CreatePickupRequest = () => {
-  const [pickupLocation, setPickupLocation] = useState("RAJAN JHA");
-  const [selectedDate, setSelectedDate] = useState("24"); // Corresponds to Mon 24
+  const navigate = useNavigate();
+  const { locations, availableOrders, loading, error, createPickupRequest, fetchLocations, fetchAvailableOrders } = usePickupRequests();
+  
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState("Mid Day 10:00:00 - 14:00:00");
   const [isDefaultSlotSaved, setIsDefaultSlotSaved] = useState(false);
+  const [formError, setFormError] = useState("");
 
-  // Dummy data for available dates
-  const availableDates = [
-    { day: "Today", date: "23", isEnabled: true },
-    { day: "Mon", date: "24", isEnabled: true },
-    { day: "Tue", date: "25", isEnabled: true },
+  // Fetch locations on mount
+  useEffect(() => {
+    fetchLocations();
+  }, [fetchLocations]);
+
+  // Fetch available orders when location changes
+  useEffect(() => {
+    if (pickupLocation) {
+      fetchAvailableOrders(pickupLocation);
+    }
+  }, [pickupLocation, fetchAvailableOrders]);
+
+  // Generate available dates (today + next 7 days)
+  const getAvailableDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayName = i === 0 ? 'Today' : dayNames[date.getDay()];
+      
+      dates.push({
+        day: dayName,
+        date: date.getDate().toString(),
+        fullDate: date,
+        isEnabled: true
+      });
+    }
+    
+    return dates;
+  };
+
+  const availableDates = getAvailableDates();
+
+  // Pickup slots
+  const pickupSlots = [
+    {
+      id: "midday",
+      label: "Mid Day 10:00:00 - 14:00:00",
+      startTime: "10:00:00",
+      endTime: "14:00:00"
+    },
+    {
+      id: "morning",
+      label: "Morning 08:00:00 - 12:00:00",
+      startTime: "08:00:00",
+      endTime: "12:00:00"
+    },
+    {
+      id: "evening",
+      label: "Evening 14:00:00 - 18:00:00",
+      startTime: "14:00:00",
+      endTime: "18:00:00"
+    }
   ];
 
-  // Dummy data for pickup slots
- const pickupSlots = [
-  {
-    id: "midday",
-    label: "☀️ Mid Day 10:00:00 - 14:00:00",
-  },
-  {
-    id: "morning",
-    label: "🌅 Morning 08:00:00 - 12:00:00",
-  },
-];
-  const [selectedSlot, setSelectedSlot] = useState(pickupSlots[0].label);
+  // Get selected location details
+  const selectedLocationDetails = locations.find(loc => loc.name === pickupLocation);
 
-  const handleCreatePickup = () => {
-    console.log("Pickup Request Created", {
-      pickupLocation,
-      selectedDate,
-      selectedSlot,
-      isDefaultSlotSaved,
-    });
-    alert("Pickup Request Submitted!");
-    // Implement actual API call logic here
+  // Calculate time remaining for same day pickup
+  const getTimeRemaining = () => {
+    const now = new Date();
+    const cutoffTime = new Date();
+    cutoffTime.setHours(14, 0, 0, 0); // 2 PM
+    
+    if (now < cutoffTime) {
+      const diff = cutoffTime - now;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      return `${hours}:${minutes.toString().padStart(2, '0')} Hrs`;
+    }
+    return null;
+  };
+
+  const timeRemaining = getTimeRemaining();
+
+  const handleCreatePickup = async () => {
+    setFormError("");
+    
+    if (!pickupLocation) {
+      setFormError("Please select a pickup location");
+      return;
+    }
+    
+    if (!selectedDate) {
+      setFormError("Please select a pickup date");
+      return;
+    }
+
+    if (!selectedLocationDetails) {
+      setFormError("Invalid pickup location");
+      return;
+    }
+
+    try {
+      const slotDetails = pickupSlots.find(s => s.label === selectedSlot) || pickupSlots[0];
+      
+      const pickupData = {
+        pickupLocation: {
+          name: selectedLocationDetails.name,
+          address: selectedLocationDetails.address,
+          city: selectedLocationDetails.city,
+          state: selectedLocationDetails.state,
+          pincode: selectedLocationDetails.pincode,
+          phone: selectedLocationDetails.phone
+        },
+        pickupDate: selectedDate.toISOString(),
+        pickupSlot: {
+          startTime: slotDetails.startTime,
+          endTime: slotDetails.endTime,
+          label: slotDetails.label
+        },
+        orderIds: availableOrders.map(o => o._id || o.id),
+        isDefaultSlot: isDefaultSlotSaved
+      };
+
+      const result = await createPickupRequest(pickupData);
+      
+      // Success - redirect to pickup requests page
+      navigate('/pickup-requests');
+    } catch (err) {
+      setFormError(err.message || 'Failed to create pickup request');
+    }
   };
 
   return (
     <div className="min-h-screen mb-24">
       {/* Header */}
-      <h1 className="text-sm font-semibold text-[#131842] flex gap-2 h-10 items-center mb-5">
-        <ChevronLeft /> Create Pickup Request
-      </h1>
+      <div className="flex items-center gap-2 mb-5">
+        <button onClick={() => navigate(-1)} className="cursor-pointer">
+          <ChevronLeft size={20} />
+        </button>
+        <h1 className="text-sm font-semibold text-[#131842]">Create Pickup Request</h1>
+      </div>
+
+      {/* Error Message */}
+      {(error || formError) && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
+          <AlertCircle size={16} />
+          <span>{error || formError}</span>
+        </div>
+      )}
 
       {/* --- Pickup Details Section --- */}
       <section className="rounded-lg shadow-md p-3 mb-6 border border-[#B8BACC]">
         <div className="flex items-center text-lg font-semibold text-[#131842] mb-4">
           <span className="bg-[#FFFFFF] rounded-lg py-2 px-3 mr-3">
-            <Truck size={24} className="text-black " />
+            <Truck size={24} className="text-black" />
           </span>
           Pickup Details
         </div>
@@ -96,12 +213,12 @@ const CreatePickupRequest = () => {
             <select
               value={pickupLocation}
               onChange={(e) => setPickupLocation(e.target.value)}
-              className="w-full appearance-none  rounded-lg py-2.5 pl-4 pr-10 text-gray-800 bg-[#FFFFFF] focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition duration-150 ease-in-out"
+              className="w-full appearance-none rounded-lg py-2.5 pl-4 pr-10 text-gray-800 bg-[#FFFFFF] focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition duration-150 ease-in-out border border-gray-300"
             >
-              <option value="RAJAN JHA">RAJAN JHA</option>
-              <option value="RAJAN JHA">RAJAN JHA</option>
-              <option value="RAJAN JHA">RAJAN JHA</option>
-              {/* Add more options here */}
+              <option value="">Select Pickup Location</option>
+              {locations.map((loc, idx) => (
+                <option key={idx} value={loc.name}>{loc.name}</option>
+              ))}
             </select>
             <ChevronDown
               size={18}
@@ -124,48 +241,46 @@ const CreatePickupRequest = () => {
                 key={d.date}
                 day={d.day}
                 date={d.date}
-                isActive={d.date === selectedDate}
-                onClick={() => d.isEnabled && setSelectedDate(d.date)}
+                isActive={selectedDate && selectedDate.getDate().toString() === d.date}
+                onClick={() => setSelectedDate(d.fullDate)}
+                isEnabled={d.isEnabled}
               />
             ))}
           </div>
         </div>
 
         {/* Same Day Pickup Alert */}
-        <div className="flex items-center p-3 bg-[#1318420D] border-l-4 border-yellow-500 rounded-lg text-sm text-[#131842] mb-6 w-fit">
-          <Info size={18} className="mr-3" />
-          <p className="leading-relaxed ">
-            <span className="font-semibold">02:48 Hrs</span> remain for the same
-            day Pickup. Book before 2pm to get Same day pickup at yor doorstep
-          </p>
-        </div>
+        {timeRemaining && (
+          <div className="flex items-center p-3 bg-[#1318420D] border-l-4 border-yellow-500 rounded-lg text-sm text-[#131842] mb-6 w-fit">
+            <Info size={18} className="mr-3" />
+            <p className="leading-relaxed">
+              <span className="font-semibold">{timeRemaining}</span> remain for the same
+              day Pickup. Book before 2pm to get Same day pickup at your doorstep
+            </p>
+          </div>
+        )}
 
         {/* Default Pickup Slot */}
-
-            
-
-
-
-
-
         <div className="p-6 bg-[#1318420D] rounded-xl border border-gray-100 w-2/3 flex items-center gap-4">
-          
           <img src="/images/icon/pickup-slot.png" alt="pickup-slot"/>
-          <div>
-            <h2 className="text-sm font-semibold text-[#131842] mb-4"> Default Pickup Slot</h2> 
+          <div className="flex-1">
+            <h2 className="text-sm font-semibold text-[#131842] mb-4">Default Pickup Slot</h2> 
             <div className="relative mb-4">
               <select
                 value={selectedSlot}
                 onChange={(e) => setSelectedSlot(e.target.value)}
-                className="w-full appearance-none border border-gray-300 rounded-lg py-2.5 px-4 text-gray-800 bg-white focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition duration-150 ease-in-out">
+                className="w-full appearance-none border border-gray-300 rounded-lg py-2.5 px-4 text-gray-800 bg-white focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition duration-150 ease-in-out"
+              >
                 {pickupSlots.map((slot) => (
                   <option key={slot.id} value={slot.label}>
-                      {slot.label}
+                    {slot.label}
                   </option>
                 ))}
               </select>
-                <ChevronDown  size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#131842] pointer-events-none"
-            />
+              <ChevronDown 
+                size={18} 
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#131842] pointer-events-none"
+              />
             </div>
             {/* Save Default Checkbox */}
             <div className="flex items-center">
@@ -188,29 +303,69 @@ const CreatePickupRequest = () => {
       </section>
 
       {/* --- Orders Ready Section --- */}
-      <section className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
-        <div className="flex items-center text-sm font-semibold text-gray-800">
-          <Box size={24} className="text-gray-600 mr-3" />
-          Orders ready to be shipped from RAJAN JHA
-          <Info size={14} className="ml-2 text-gray-400 cursor-pointer" />
-        </div>
-        {/* In a real application, this section would list the orders */}
-      </section>
+      {pickupLocation && (
+        <section className="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
+          <div className="flex items-center text-sm font-semibold text-gray-800 mb-4">
+            <Box size={24} className="text-gray-600 mr-3" />
+            Orders ready to be shipped from {pickupLocation}
+            <Info size={14} className="ml-2 text-gray-400 cursor-pointer" />
+          </div>
+          
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            </div>
+          ) : availableOrders && availableOrders.length > 0 ? (
+            <div className="space-y-2">
+              {availableOrders.slice(0, 5).map((order, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="font-medium text-sm text-gray-800">{order.orderNumber}</div>
+                    <div className="text-xs text-gray-500">{order.awb || 'AWB not generated'}</div>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {order.pickupDetails?.city}, {order.pickupDetails?.state}
+                  </div>
+                </div>
+              ))}
+              {availableOrders.length > 5 && (
+                <div className="text-sm text-gray-600 text-center pt-2">
+                  + {availableOrders.length - 5} more orders
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 text-center py-4">
+              No orders available for pickup at this location
+            </div>
+          )}
+        </section>
+      )}
 
       {/* --- Sticky Footer Action Bar --- */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-2xl flex justify-end space-x-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-2xl flex justify-end space-x-4 z-40">
         <button
+          onClick={() => navigate(-1)}
           className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition duration-150"
-          onClick={() => console.log("Cancelled")}
         >
           Cancel
         </button>
         <button
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition duration-150 flex items-center"
           onClick={handleCreatePickup}
+          disabled={loading || !pickupLocation || !selectedDate}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition duration-150 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Check size={20} className="mr-2" />
-          Create Pickup Request
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Check size={20} className="mr-2" />
+              Create Pickup Request
+            </>
+          )}
         </button>
       </div>
     </div>

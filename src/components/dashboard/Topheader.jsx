@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
 
@@ -32,6 +33,7 @@ const formatCurrency = (amount) => {
 
 // Main dashboard component
 const Topheader = () => {
+  const navigate = useNavigate();
   const { stats, loading, error, fetchStats } = useDashboard();
   const [dateRange, setDateRange] = useState("");
 
@@ -54,13 +56,22 @@ const Topheader = () => {
       {/* --- Header Section --- */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex space-x-4">
-          <button className="flex items-center space-x-2 p-2 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition duration-150">
+          <button 
+            onClick={() => navigate('/rate-calculator')}
+            className="flex items-center space-x-2 p-2 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition duration-150 cursor-pointer"
+          >
             <span className="font-semibold text-gray-700">Rate Calculator</span>
             <div>
               <img src="/images/icon/calculate_icon.png" alt="calculate_icon" />
             </div>
           </button>
-          <button className="flex items-center space-x-2 p-2 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition duration-150">
+          <button 
+            onClick={() => {
+              // Open documentation or help page
+              window.open('https://help.flywell.com', '_blank');
+            }}
+            className="flex items-center space-x-2 p-2 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition duration-150 cursor-pointer"
+          >
             <span className="font-semibold text-gray-700">Know More</span>
             <div>
               <img src="/images/icon/know-more.png" alt="know-more" />
