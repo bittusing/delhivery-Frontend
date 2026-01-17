@@ -13,6 +13,7 @@ export { default as SettingsPage } from "./Settings";
 export { default as ForwardOrdersPage } from "./ForwardOrders";
 export { default as ReserveOrdersPage } from "./ReserveOrders";
 export { default as PickupRequestsPage } from "./PickupRequests";
+export { default as OrderListPage } from "./OrderList";
 
 
 // Finances Pages

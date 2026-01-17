@@ -9,6 +9,7 @@ import { useAuth } from './hooks/useAuth';
 import * as Pages from './pages/index.js'
 import OrderDetailsPage from './pages/orderDetailsPage/index.jsx';
 import ShipmentsPage from './pages/shipmentsPage/index.jsx';
+import CreateOrder from './pages/CreateOrder.jsx';
 
 // Layout component for protected routes
 const DashboardLayout = ({ isSidebarOpen, setIsSidebarOpen, children }) => {
@@ -100,6 +101,26 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
                 <Pages.PickupRequestsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/create-order"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
+                <CreateOrder />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
+                <Pages.OrderListPage />
               </DashboardLayout>
             </ProtectedRoute>
           }
@@ -337,6 +358,16 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
                 <ShipmentsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
+                <Pages.OrderListPage />
               </DashboardLayout>
             </ProtectedRoute>
           }

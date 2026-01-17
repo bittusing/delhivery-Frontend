@@ -1,19 +1,19 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CloudUpload, Plus } from 'lucide-react'; 
 
 
 
 const ForwardOrders = () => {
-    // Event handlers would typically be passed down or defined here 
-    // to handle the button clicks (e.g., navigation, opening a modal, etc.)
+    const navigate = useNavigate();
+    
     const handleCreateBulkOrders = () => {
+        // TODO: Implement bulk order creation
         console.log("Create Bulk Orders clicked");
-        // Add navigation or logic here
     };
 
     const handleCreateOrder = () => {
-        console.log("Create Order clicked");
-        // Add navigation or logic here
+        navigate('/create-order');
     };
 
     return (

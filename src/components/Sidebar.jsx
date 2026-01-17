@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 const navItems = [
   { label: "Dashboard", icon: "fa-solid_home", icon2: "fa-solid_home-1" },
@@ -9,12 +9,14 @@ const navItems = [
     icon2: "package-1",
     subMenu: [
       // Submenu definition
-      { label: "Forward Orders" },
-      { label: "Reserve Orders" },
-      { label: "Pickup Requests" },
+      { label: "Create Order", path: "/create-order" },
+      { label: "Forward Orders", path: "/forward-orders" },
+      { label: "Reserve Orders", path: "/reserve-orders" },
+      { label: "Pickup Requests", path: "/pickup-requests" },
+      { label: "All Orders", path: "/orders" },
     ],
   },
-  { label: "Direct Intracity Orders", icon: "danger",icon2: "danger-1" },
+  { label: "Direct Intracity Orders", icon: "danger", icon2: "danger-1" },
   { label: "Exceptions & NDR", icon: "delivery-man", icon2: "delivery-man-1" },
   {
     label: "Finances",
@@ -22,9 +24,9 @@ const navItems = [
     icon2: "money-1",
     subMenu: [
       // Submenu definition
-      { label: "Wallet" },
-      { label: "Remittances" },
-      { label: "Invoices" },
+      { label: "Wallet", path: "/wallet" },
+      { label: "Remittances", path: "/remittances" },
+      { label: "Invoices", path: "/invoices" },
     ],
   },
   { label: "Support", icon: "help-desk", icon2: "help-desk-1" },
@@ -34,8 +36,8 @@ const navItems = [
     icon2: "balance-1",
     subMenu: [
       // Submenu definition
-      { label: "Weight Mismatch" },
-      { label: "Claims" },
+      { label: "Weight Mismatch", path: "/weight-mismatch" },
+      { label: "Claims", path: "/claims" },
     ],
   },
   { label: "Reports", icon: "google-docs", icon2: "google-docs-1" },
@@ -45,13 +47,13 @@ const navItems = [
     icon2: "info-1",
     subMenu: [
       // Submenu definition
-      { label: "Rate Calculator" },
-      { label: "Rate Card" },
-      { label: "Pincode Serviceability" },
-      { label: "Packaging Guide" },
-      { label: "Restricted Items" },
-      { label: "Terms & Conditions" },
-      { label: "Fetch AWB Numbers" },
+      { label: "Rate Calculator", path: "/rate-calculator" },
+      { label: "Rate Card", path: "/rate-card" },
+      { label: "Pincode Serviceability", path: "/pincode-serviceability" },
+      { label: "Packaging Guide", path: "/packaging-guide" },
+      { label: "Restricted Items", path: "/restricted-items" },
+      { label: "Terms & Conditions", path: "/terms-conditions" },
+      { label: "Fetch AWB Numbers", path: "/fetch-awb-numbers" },
     ],
   },
   { label: "Services", icon: "jigsaw", icon2: "jigsaw-1" },
@@ -70,11 +72,12 @@ const toPath = (label) =>
 
 // Updated Sidebar component to accept activeItem and setActiveItem props
 const Sidebar = ({ isSidebarOpen }) => {
-  const [isActiveMenu, setIsActiveMenu] = useState("Dashboard");
+  const [isActiveMenu, setIsActiveMenu] = useState(null);
   const [subactiveItem, setSubactiveItem] = useState("");
 
-  const handleItemClick = (label, hasSubMenu) => {
+  const handleItemClick = (label, hasSubMenu, e) => {
     if (hasSubMenu) {
+      e?.preventDefault();
       setIsActiveMenu((prevActiveMenu) =>
         prevActiveMenu === label ? null : label
       );
@@ -87,6 +90,7 @@ const Sidebar = ({ isSidebarOpen }) => {
   const handleSubItemClick = (subLabel) => {
     setSubactiveItem(subLabel);
   };
+  
   const sidebarWidthClass = isSidebarOpen ? "w-[150px] lg:w-44 xl:w-64" : " w-14 xl:w-20";
   const contentVisibilityClass = isSidebarOpen ? "block" : "hidden";
   const sideItemWodth = isSidebarOpen ? "px-[5px] xl:px-4" : " px-0";
@@ -116,13 +120,13 @@ const Sidebar = ({ isSidebarOpen }) => {
 
             return (
               <div key={label}>
-                <NavLink to={menuPath}
-                  onClick={() => handleItemClick(label, hasSubMenu)}
-                  className={`py-2 xl:py-3 rounded-lg transition-colors ${itemClasses} ${sideItemWodth} cursor-pointer block`}
-                >
-                  <div className="flex items-center justify-center gap-[5px] xl:gap-3">
-                    {console.log("Rendering icon for", label, "isMenuActive:", isMenuActive)}
-                    {
+                {hasSubMenu ? (
+                  <div
+                    onClick={(e) => handleItemClick(label, hasSubMenu, e)}
+                    className={`py-2 xl:py-3 rounded-lg transition-colors ${itemClasses} ${sideItemWodth} cursor-pointer block`}
+                  >
+                    <div className="flex items-center justify-center gap-[5px] xl:gap-3">
+                      {
                         isMenuActive ? (
                           <img src={`/images/icon/${icon}.png`} alt={label} />
                         ) : (
@@ -130,32 +134,59 @@ const Sidebar = ({ isSidebarOpen }) => {
                         )
                       }                    
 
-                    <div className={`${contentVisibilityClass} flex items-center justify-between flex-grow`}>
-                      <span className={`text-xs xl:text-sm`}>{label}</span>
-                      {hasSubMenu && (
-                        <span
-                          className={`text-xl leading-3 transition duration-300 ease-in-out ${
-                            isMenuActive ? "rotate-90" : "rotate-0"
-                          }`}
-                        >
-                          ›
-                        </span>
-                      )}
+                      <div className={`${contentVisibilityClass} flex items-center justify-between flex-grow`}>
+                        <span className={`text-xs xl:text-sm`}>{label}</span>
+                        {hasSubMenu && (
+                          <span
+                            className={`text-xl leading-3 transition duration-300 ease-in-out ${
+                              isMenuActive ? "rotate-90" : "rotate-0"
+                            }`}
+                          >
+                            ›
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </NavLink>
+                ) : (
+                  <NavLink 
+                    to={menuPath}
+                    onClick={() => handleItemClick(label, hasSubMenu)}
+                    className={`py-2 xl:py-3 rounded-lg transition-colors ${itemClasses} ${sideItemWodth} cursor-pointer block`}
+                  >
+                    <div className="flex items-center justify-center gap-[5px] xl:gap-3">
+                      {
+                        isMenuActive ? (
+                          <img src={`/images/icon/${icon}.png`} alt={label} />
+                        ) : (
+                          <img src={`/images/icon/${icon2}.png`} alt={label} />
+                        )
+                      }                    
+
+                      <div className={`${contentVisibilityClass} flex items-center justify-between flex-grow`}>
+                        <span className={`text-xs xl:text-sm`}>{label}</span>
+                      </div>
+                    </div>
+                  </NavLink>
+                )}
 
                 {/* --- Submenu (Conditional Rendering) --- */}
                 {hasSubMenu && isMenuActive && isSidebarOpen && (
                   <div className="pt-2 pl-1 lg:pl-4 space-y-1">
                     {subMenu.map((subItem) => {
                       const isSubActive = subItem.label === subactiveItem;
-                      const subPath = toPath(subItem.label);
-                      const subitemClasses = isSubActive ? "bg-[#404c7d] text-white font-semibold" : "hover:bg-[#404c7d]/50 text-white font-medium";
+                      // Use custom path if provided, otherwise generate from label
+                      const subPath = subItem.path || toPath(subItem.label);
+                      const subitemClasses = isSubActive 
+                        ? "bg-[#404c7d] text-white font-semibold" 
+                        : "hover:bg-[#404c7d]/50 text-white font-medium";
                       return (
-                        <NavLink to={subPath} key={subItem.label}
+                        <NavLink 
+                          to={subPath} 
+                          key={subItem.label}
                           onClick={() => handleSubItemClick(subItem.label)}
-                          className={`flex items-center gap-1 lg:gap-2 py-2 px-1 lg:px-2 xl:px-6 rounded-lg cursor-pointer text-xs xl:text-sm transition duration-300 ease-in-out ${subitemClasses}`}>
+                          className={`flex items-center gap-1 lg:gap-2 py-2 px-1 lg:px-2 xl:px-6 rounded-lg cursor-pointer text-xs xl:text-sm transition duration-300 ease-in-out ${subitemClasses}`}
+                        >
                           {isSubActive && (
                             <span className="text-xl leading-none">•</span>
                           )}
