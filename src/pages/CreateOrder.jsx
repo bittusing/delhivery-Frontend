@@ -1,9 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, Loader2, Check, Info } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
 import { useWallet } from '../hooks/useWallet';
 import RechargeModal from '../components/Wallet/RechargeModal';
+
+// InputField component moved outside to prevent recreation on every render
+const InputField = React.memo(({ label, value, onChange, error, placeholder, type = 'text', required = false, maxLength = null, min = null, step = null }) => {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-gray-700">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        type={type}
+        value={value || ''}
+        onChange={(e) => {
+          let inputValue = e.target.value;
+          // Handle phone and pincode length restrictions
+          if (type === 'tel' && inputValue.length > 10) {
+            inputValue = inputValue.slice(0, 10);
+          } else if (label.toLowerCase().includes('pincode') && inputValue.length > 6) {
+            inputValue = inputValue.slice(0, 6);
+          }
+          onChange(inputValue);
+        }}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        min={min}
+        step={step}
+        className={`w-full border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:border-blue-500 ${
+          error ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
+        }`}
+        style={{ pointerEvents: 'auto', zIndex: 1 }}
+      />
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render if value, error, or label changes (ignore onChange reference)
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.error === nextProps.error &&
+    prevProps.label === nextProps.label &&
+    prevProps.placeholder === nextProps.placeholder &&
+    prevProps.type === nextProps.type
+  );
+});
+InputField.displayName = 'InputField';
 
 const CreateOrder = () => {
   const navigate = useNavigate();
@@ -49,10 +93,11 @@ const CreateOrder = () => {
   const deliveryPartners = [
     { value: 'fedex', label: 'FedEx' },
     { value: 'blue_dart', label: 'Blue Dart' },
-    { value: 'bluedart', label: 'BlueDart' }
+    { value: 'bluedart', label: 'BlueDart' },
+    { value: 'delhivery', label: 'Delhivery' },
   ];
 
-  const handleChange = (section, field, value) => {
+  const handleChange = useCallback((section, field, value) => {
     setFormData(prev => ({
       ...prev,
       [section]: {
@@ -64,9 +109,9 @@ const CreateOrder = () => {
       ...prev,
       [`${section}.${field}`]: ''
     }));
-  };
+  }, []);
 
-  const handlePackageChange = (field, value) => {
+  const handlePackageChange = useCallback((field, value) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
       setFormData(prev => ({
@@ -92,7 +137,7 @@ const CreateOrder = () => {
       ...prev,
       [`packageDetails.${field}`]: ''
     }));
-  };
+  }, []);
 
   const validateForm = () => {
     const errors = {};
@@ -121,8 +166,14 @@ const CreateOrder = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleCalculateRate = async () => {
-    if (!validateForm()) {
+  const handleCalculateRate = useCallback(async () => {
+    // Validate essential fields
+    if (
+      !formData.pickupDetails.pincode.match(/^[0-9]{6}$/) ||
+      !formData.deliveryDetails.pincode.match(/^[0-9]{6}$/) ||
+      !formData.packageDetails.weight ||
+      parseFloat(formData.packageDetails.weight) < 0.1
+    ) {
       return;
     }
 
@@ -147,7 +198,7 @@ const CreateOrder = () => {
     } finally {
       setCalculatingRate(false);
     }
-  };
+  }, [formData.pickupDetails.pincode, formData.deliveryDetails.pincode, formData.packageDetails.weight, formData.packageDetails.dimensions, formData.deliveryPartner, calculateRate]);
 
   const handleCreateOrder = async () => {
     if (!validateForm()) {
@@ -208,29 +259,12 @@ const CreateOrder = () => {
     formData.pickupDetails.pincode,
     formData.deliveryDetails.pincode,
     formData.packageDetails.weight,
-    formData.deliveryPartner
+    formData.deliveryPartner,
+    handleCalculateRate
   ]);
 
-  const InputField = ({ label, value, onChange, error, placeholder, type = 'text', required = false }) => (
-    <div className="space-y-1">
-      <label className="text-xs font-medium text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full border rounded-md p-2 text-sm focus:outline-none focus:ring-2 ${
-          error ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
-        }`}
-      />
-      {error && <p className="text-xs text-red-500">{error}</p>}
-    </div>
-  );
-
   return (
-    <div className="min-h-screen mb-24">
+    <div className="min-h-screen mb-24" style={{ pointerEvents: 'auto' }}>
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => navigate(-1)} className="cursor-pointer">
@@ -267,11 +301,13 @@ const CreateOrder = () => {
               />
               <InputField
                 label="Phone"
+                type="tel"
                 value={formData.pickupDetails.phone}
-                onChange={(val) => handleChange('pickupDetails', 'phone', val)}
+                onChange={(val) => handleChange('pickupDetails', 'phone', val.replace(/\D/g, ''))}
                 error={formErrors['pickupDetails.phone']}
                 placeholder="10-digit mobile number"
                 required
+                maxLength={10}
               />
             </div>
             
@@ -287,11 +323,13 @@ const CreateOrder = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InputField
                 label="Pincode"
+                type="text"
                 value={formData.pickupDetails.pincode}
-                onChange={(val) => handleChange('pickupDetails', 'pincode', val)}
+                onChange={(val) => handleChange('pickupDetails', 'pincode', val.replace(/\D/g, ''))}
                 error={formErrors['pickupDetails.pincode']}
                 placeholder="6-digit pincode"
                 required
+                maxLength={6}
               />
               <InputField
                 label="City"
@@ -329,11 +367,13 @@ const CreateOrder = () => {
               />
               <InputField
                 label="Phone"
+                type="tel"
                 value={formData.deliveryDetails.phone}
-                onChange={(val) => handleChange('deliveryDetails', 'phone', val)}
+                onChange={(val) => handleChange('deliveryDetails', 'phone', val.replace(/\D/g, ''))}
                 error={formErrors['deliveryDetails.phone']}
                 placeholder="10-digit mobile number"
                 required
+                maxLength={10}
               />
             </div>
             
@@ -349,11 +389,13 @@ const CreateOrder = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InputField
                 label="Pincode"
+                type="text"
                 value={formData.deliveryDetails.pincode}
-                onChange={(val) => handleChange('deliveryDetails', 'pincode', val)}
+                onChange={(val) => handleChange('deliveryDetails', 'pincode', val.replace(/\D/g, ''))}
                 error={formErrors['deliveryDetails.pincode']}
                 placeholder="6-digit pincode"
                 required
+                maxLength={6}
               />
               <InputField
                 label="City"
@@ -411,6 +453,8 @@ const CreateOrder = () => {
               error={formErrors['packageDetails.weight']}
               placeholder="0.1"
               required
+              min="0.1"
+              step="0.1"
             />
             
             <div className="space-y-1">
@@ -418,24 +462,33 @@ const CreateOrder = () => {
               <div className="flex gap-2">
                 <input
                   type="number"
-                  value={formData.packageDetails.dimensions.length}
+                  value={formData.packageDetails.dimensions.length || ''}
                   onChange={(e) => handlePackageChange('dimensions.length', e.target.value)}
                   placeholder="L"
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  min="0"
+                  step="0.1"
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                  style={{ pointerEvents: 'auto', zIndex: 1 }}
                 />
                 <input
                   type="number"
-                  value={formData.packageDetails.dimensions.width}
+                  value={formData.packageDetails.dimensions.width || ''}
                   onChange={(e) => handlePackageChange('dimensions.width', e.target.value)}
                   placeholder="W"
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  min="0"
+                  step="0.1"
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                  style={{ pointerEvents: 'auto', zIndex: 1 }}
                 />
                 <input
                   type="number"
-                  value={formData.packageDetails.dimensions.height}
+                  value={formData.packageDetails.dimensions.height || ''}
                   onChange={(e) => handlePackageChange('dimensions.height', e.target.value)}
                   placeholder="H"
-                  className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                  min="0"
+                  step="0.1"
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                  style={{ pointerEvents: 'auto', zIndex: 1 }}
                 />
               </div>
             </div>
@@ -451,8 +504,10 @@ const CreateOrder = () => {
               label="Declared Value (₹) - Optional"
               type="number"
               value={formData.packageDetails.declaredValue}
-              onChange={(val) => handlePackageChange('declaredValue', val)}
+              onChange={(val) => handlePackageChange('declaredValue', val.replace(/[^0-9.]/g, ''))}
               placeholder="0"
+              min="0"
+              step="0.01"
             />
           </div>
 
