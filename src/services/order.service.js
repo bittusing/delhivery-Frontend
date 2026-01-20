@@ -25,11 +25,13 @@ class OrderService {
    */
   async getUserOrders(filters = {}) {
     const params = new URLSearchParams();
-    
+
     if (filters.status) params.append('status', filters.status);
     if (filters.deliveryPartner) params.append('deliveryPartner', filters.deliveryPartner);
     if (filters.limit) params.append('limit', filters.limit);
     if (filters.skip) params.append('skip', filters.skip);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.orderType) params.append('orderType', filters.orderType);
 
     const response = await api.get(`/orders?${params.toString()}`);
     return response.data;

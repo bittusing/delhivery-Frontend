@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { usePickupRequests } from "../hooks/usePickupRequests";
+import { useShippingMode } from "../context/ShippingModeContext";
 
 const DateButton = ({ day, date, isActive, onClick, isEnabled = true }) => (
   <button
@@ -21,15 +22,13 @@ const DateButton = ({ day, date, isActive, onClick, isEnabled = true }) => (
     disabled={!isEnabled}
   >
     <span
-      className={`text-xs font-semibold opacity-80 mb-2 ${
-        isActive ? "text-blue-600" : "text-[#131842]"
-      }`}>
+      className={`text-xs font-semibold opacity-80 mb-2 ${isActive ? "text-blue-600" : "text-[#131842]"
+        }`}>
       {day}
     </span>
     <span
-      className={`text-sm font-semibold rounded-full w-10 h-10 border border-gray-500 leading-10 ${
-        isActive ? "bg-blue-600 text-white border-blue-500" : "bg-gray-100 text-[#131842]"
-      }`}>
+      className={`text-sm font-semibold rounded-full w-10 h-10 border border-gray-500 leading-10 ${isActive ? "bg-blue-600 text-white border-blue-500" : "bg-gray-100 text-[#131842]"
+        }`}>
       {date}
     </span>
   </button>
@@ -41,7 +40,8 @@ const DateButton = ({ day, date, isActive, onClick, isEnabled = true }) => (
 const CreatePickupRequest = () => {
   const navigate = useNavigate();
   const { locations, availableOrders, loading, error, createPickupRequest, fetchLocations, fetchAvailableOrders } = usePickupRequests();
-  
+  const { shippingMode } = useShippingMode();
+
   const [pickupLocation, setPickupLocation] = useState("");
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState("Mid Day 10:00:00 - 14:00:00");
@@ -50,28 +50,28 @@ const CreatePickupRequest = () => {
 
   // Fetch locations on mount
   useEffect(() => {
-    fetchLocations();
-  }, [fetchLocations]);
+    fetchLocations(shippingMode);
+  }, [fetchLocations, shippingMode]);
 
   // Fetch available orders when location changes
   useEffect(() => {
     if (pickupLocation) {
-      fetchAvailableOrders(pickupLocation);
+      fetchAvailableOrders(pickupLocation, shippingMode);
     }
-  }, [pickupLocation, fetchAvailableOrders]);
+  }, [pickupLocation, fetchAvailableOrders, shippingMode]);
 
   // Generate available dates (today + next 7 days)
   const getAvailableDates = () => {
     const dates = [];
     const today = new Date();
-    
+
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      
+
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const dayName = i === 0 ? 'Today' : dayNames[date.getDay()];
-      
+
       dates.push({
         day: dayName,
         date: date.getDate().toString(),
@@ -79,7 +79,7 @@ const CreatePickupRequest = () => {
         isEnabled: true
       });
     }
-    
+
     return dates;
   };
 
@@ -115,7 +115,7 @@ const CreatePickupRequest = () => {
     const now = new Date();
     const cutoffTime = new Date();
     cutoffTime.setHours(14, 0, 0, 0); // 2 PM
-    
+
     if (now < cutoffTime) {
       const diff = cutoffTime - now;
       const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -129,12 +129,12 @@ const CreatePickupRequest = () => {
 
   const handleCreatePickup = async () => {
     setFormError("");
-    
+
     if (!pickupLocation) {
       setFormError("Please select a pickup location");
       return;
     }
-    
+
     if (!selectedDate) {
       setFormError("Please select a pickup date");
       return;
@@ -147,7 +147,7 @@ const CreatePickupRequest = () => {
 
     try {
       const slotDetails = pickupSlots.find(s => s.label === selectedSlot) || pickupSlots[0];
-      
+
       const pickupData = {
         pickupLocation: {
           name: selectedLocationDetails.name,
@@ -164,11 +164,12 @@ const CreatePickupRequest = () => {
           label: slotDetails.label
         },
         orderIds: availableOrders.map(o => o._id || o.id),
-        isDefaultSlot: isDefaultSlotSaved
+        isDefaultSlot: isDefaultSlotSaved,
+        orderType: shippingMode
       };
 
       const result = await createPickupRequest(pickupData);
-      
+
       // Success - redirect to pickup requests page
       navigate('/pickup-requests');
     } catch (err) {
@@ -262,9 +263,9 @@ const CreatePickupRequest = () => {
 
         {/* Default Pickup Slot */}
         <div className="p-6 bg-[#1318420D] rounded-xl border border-gray-100 w-2/3 flex items-center gap-4">
-          <img src="/images/icon/pickup-slot.png" alt="pickup-slot"/>
+          <img src="/images/icon/pickup-slot.png" alt="pickup-slot" />
           <div className="flex-1">
-            <h2 className="text-sm font-semibold text-[#131842] mb-4">Default Pickup Slot</h2> 
+            <h2 className="text-sm font-semibold text-[#131842] mb-4">Default Pickup Slot</h2>
             <div className="relative mb-4">
               <select
                 value={selectedSlot}
@@ -277,8 +278,8 @@ const CreatePickupRequest = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown 
-                size={18} 
+              <ChevronDown
+                size={18}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#131842] pointer-events-none"
               />
             </div>
@@ -298,7 +299,7 @@ const CreatePickupRequest = () => {
                 Save this as the default pickup slot for this location
               </label>
             </div>
-          </div>          
+          </div>
         </div>
       </section>
 
@@ -310,7 +311,7 @@ const CreatePickupRequest = () => {
             Orders ready to be shipped from {pickupLocation}
             <Info size={14} className="ml-2 text-gray-400 cursor-pointer" />
           </div>
-          
+
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-blue-600" />

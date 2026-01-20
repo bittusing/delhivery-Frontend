@@ -12,6 +12,8 @@ import { Link } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { usePickupRequests } from "../hooks/usePickupRequests";
+import { useShippingMode } from "../context/ShippingModeContext";
+import KYCGuard from "../components/KYCGuard";
 
 // Helper function to format date
 const formatDate = (date) => {
@@ -47,20 +49,21 @@ const getStatusColor = (status) => {
 const PickupRequests = () => {
   const navigate = useNavigate();
   const { pickupRequests, locations, loading, error, fetchPickupRequests, fetchLocations } = usePickupRequests();
-  
+  const { shippingMode } = useShippingMode();
+
   // State for filters
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   endDate.setDate(endDate.getDate() + 14); // Default 14 days ahead
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
 
   // Fetch locations on mount
   useEffect(() => {
-    fetchLocations();
-  }, [fetchLocations]);
+    fetchLocations(shippingMode);
+  }, [fetchLocations, shippingMode]);
 
   // Fetch pickup requests when filters change
   useEffect(() => {
@@ -69,9 +72,10 @@ const PickupRequests = () => {
       endDate: endDate.toISOString(),
       status: statusFilter || undefined,
       location: locationFilter || undefined,
-      search: searchQuery || undefined
+      search: searchQuery || undefined,
+      type: shippingMode
     };
-    
+
     fetchPickupRequests(filters);
   }, [startDate, endDate, statusFilter, locationFilter, searchQuery, fetchPickupRequests]);
 
@@ -89,21 +93,22 @@ const PickupRequests = () => {
   ));
 
   return (
-    <div className="min-h-[calc(100vh-96px)]">
-      {/* 1. Header Section */}
-      <header className="flex justify-between items-center mb-5">
-        <div className="flex items-center gap-5">
-          <h1 className="text-xl font-bold text-[#131842]">Pickup Requests</h1>
-          <button className="text-[#131842] text-base font-medium py-2 px-4 bg-white rounded-md flex items-center gap-5">
-            <span>Learn More</span>{" "}
-            <img src="/images/icon/q-mark.png" alt="q-mark" />
-          </button>
-        </div>
+    <KYCGuard message="Complete KYC verification to create and manage pickup requests.">
+      <div className="min-h-[calc(100vh-96px)]">
+        {/* 1. Header Section */}
+        <header className="flex justify-between items-center mb-5">
+          <div className="flex items-center gap-5">
+            <h1 className="text-xl font-bold text-[#131842]">Pickup Requests</h1>
+            <button className="text-[#131842] text-base font-medium py-2 px-4 bg-white rounded-md flex items-center gap-5">
+              <span>Learn More</span>{" "}
+              <img src="/images/icon/q-mark.png" alt="q-mark" />
+            </button>
+          </div>
 
-        <Link 
-          to={"/create-pickup-request"} 
-          className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-[18px] px-3 rounded-lg shadow-md transition duration-200"
-        >
+          <Link
+            to={"/create-pickup-request"}
+            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-[18px] px-3 rounded-lg shadow-md transition duration-200"
+          >
           <Plus size={18} className="mr-2" />
           Create Pickup Request
         </Link>
@@ -149,7 +154,7 @@ const PickupRequests = () => {
 
         {/* Status Dropdown */}
         <div className="relative font-medium rounded-lg overflow-hidden">
-          <select 
+          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="py-[10px] pl-4 bg-white text-sm font-semibold text-black appearance-none pr-8 focus:outline-none cursor-pointer min-w-[140px]"
@@ -168,7 +173,7 @@ const PickupRequests = () => {
 
         {/* Location Dropdown */}
         <div className="relative font-medium rounded-lg overflow-hidden">
-          <select 
+          <select
             value={locationFilter}
             onChange={(e) => setLocationFilter(e.target.value)}
             className="py-[10px] pl-4 bg-white text-sm font-semibold text-black appearance-none pr-8 focus:outline-none cursor-pointer min-w-[180px]"
@@ -217,7 +222,7 @@ const PickupRequests = () => {
               const requestedDateTime = formatDateTime(request.requestedOn);
               const pickupDateTime = formatDateTime(request.pickupDate);
               const lastUpdateDateTime = formatDateTime(request.lastUpdate);
-              
+
               return (
                 <div key={request.id} className="flex items-center p-4 border-b hover:bg-blue-50 transition duration-100">
                   <input type="checkbox" className="mr-4 h-4 w-4 text-blue-600 border-gray-300 rounded flex-shrink-0" />
@@ -247,7 +252,7 @@ const PickupRequests = () => {
                       <div className="text-xs text-gray-500">{lastUpdateDateTime.time}</div>
                     </div>
                     <div className="text-right">
-                      <button 
+                      <button
                         onClick={() => navigate(`/pickup-request/${request.id || request._id}`)}
                         className="text-blue-500 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
                       >
@@ -266,7 +271,8 @@ const PickupRequests = () => {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </KYCGuard>
   );
 };
 

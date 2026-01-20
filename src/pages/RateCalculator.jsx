@@ -1,35 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { Info, Plane, Truck, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
+import { useShippingMode } from '../context/ShippingModeContext';
 
 const RateCalculatorPage = () => {
   const { calculateRate, loading, error } = useOrders();
-  const [activeTab, setActiveTab] = useState('RTO');
+  const { shippingMode, getDeliveryPartners, isInternational } = useShippingMode();
+  const [activeTab, setActiveTab] = useState('Forward');
   const [rateData, setRateData] = useState(null);
   const [calculating, setCalculating] = useState(false);
 
   // Form state
   const [pickupPincode, setPickupPincode] = useState('110044');
   const [deliveryPincode, setDeliveryPincode] = useState('110044');
-  const [packageType, setPackageType] = useState('Plastic cover/Flyer');
+  const [pickupCountry, setPickupCountry] = useState('India');
+  const [deliveryCountry, setDeliveryCountry] = useState('India');
+  const [packageType, setPackageType] = useState('Box');
   const [weight, setWeight] = useState(0.5); // in kg
-  const [dimensions, setDimensions] = useState({ length: 1, width: 1, height: 1 });
+  const [dimensions, setDimensions] = useState({ length: 10, width: 10, height: 10 });
   const [paymentMode, setPaymentMode] = useState('prepaid');
-  const [deliveryPartner, setDeliveryPartner] = useState('blue_dart');
+  const [deliveryPartner, setDeliveryPartner] = useState('');
+
+  const deliveryPartners = getDeliveryPartners();
+
+  useEffect(() => {
+    if (deliveryPartners.length > 0 && !deliveryPartner) {
+      setDeliveryPartner(deliveryPartners[0].value);
+    }
+  }, [deliveryPartners, deliveryPartner]);
+
+  // Update countries when mode changes
+  useEffect(() => {
+    if (isInternational) {
+      setDeliveryPincode('');
+      setDeliveryCountry('');
+    } else {
+      setPickupCountry('India');
+      setDeliveryCountry('India');
+      setDeliveryPincode('110044');
+    }
+  }, [shippingMode, isInternational]);
 
   // Calculate rate when inputs change
   useEffect(() => {
+    const hasPincode = isInternational
+      ? (pickupPincode.trim() && deliveryPincode.trim())
+      : (pickupPincode.match(/^[0-9]{6}$/) && deliveryPincode.match(/^[0-9]{6}$/));
+
     if (
-      pickupPincode.match(/^[0-9]{6}$/) &&
-      deliveryPincode.match(/^[0-9]{6}$/) &&
-      weight > 0
+      hasPincode &&
+      weight > 0 &&
+      deliveryPartner
     ) {
       const timer = setTimeout(() => {
         handleCalculateRate();
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [pickupPincode, deliveryPincode, weight, dimensions, deliveryPartner]);
+  }, [pickupPincode, deliveryPincode, weight, dimensions, deliveryPartner, shippingMode]);
 
   const handleCalculateRate = async () => {
     setCalculating(true);
@@ -37,11 +65,14 @@ const RateCalculatorPage = () => {
       const rateResponse = await calculateRate({
         pickupPincode,
         deliveryPincode,
+        pickupCountry,
+        deliveryCountry,
         weight,
         length: dimensions.length,
         width: dimensions.width,
         height: dimensions.height,
-        deliveryPartner
+        deliveryPartner,
+        orderType: shippingMode
       });
 
       setRateData(rateResponse);
@@ -82,19 +113,39 @@ const RateCalculatorPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        
+
         {/* Left Side: Input Form */}
         <div className="rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden px-5">
-          <div className="border-b-2 border-blue-600 px-6 py-4 text-center text-blue-600 font-bold">
-            Domestic
+          <div className="border-b-2 border-blue-600 px-6 py-4 text-center text-blue-600 font-bold capitalize">
+            {shippingMode} SHIPPING
           </div>
-          
+
           <div className="py-6 space-y-6">
             {/* Pincode Section */}
             <div>
               <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Pickup and delivery pincode
+                {isInternational ? 'Pickup and delivery country / pincode' : 'Pickup and delivery pincode'}
               </label>
+
+              {isInternational && (
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <input
+                    type="text"
+                    value={pickupCountry}
+                    onChange={(e) => setPickupCountry(e.target.value)}
+                    placeholder="Pickup Country"
+                    className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold outline-none border-2 border-transparent focus:border-blue-500"
+                  />
+                  <input
+                    type="text"
+                    value={deliveryCountry}
+                    onChange={(e) => setDeliveryCountry(e.target.value)}
+                    placeholder="Delivery Country"
+                    className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold outline-none border-2 border-transparent focus:border-blue-500"
+                  />
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <div className="flex-1">
                   <input
@@ -102,11 +153,10 @@ const RateCalculatorPage = () => {
                     value={pickupPincode}
                     onChange={(e) => setPickupPincode(e.target.value)}
                     placeholder="Pickup pincode"
-                    maxLength={6}
                     className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold outline-none border-2 border-transparent focus:border-blue-500"
                   />
                 </div>
-                
+
                 <div className="flex-none px-2 text-slate-300">-----</div>
 
                 <div className="flex-1">
@@ -115,14 +165,12 @@ const RateCalculatorPage = () => {
                     value={deliveryPincode}
                     onChange={(e) => setDeliveryPincode(e.target.value)}
                     placeholder="Delivery pincode"
-                    maxLength={6}
                     className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold outline-none border-2 border-transparent focus:border-blue-500"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Delivery Partner */}
             <div>
               <label className="mb-2 block text-xs font-bold text-slate-700">Delivery Partner</label>
               <div className="relative">
@@ -131,9 +179,9 @@ const RateCalculatorPage = () => {
                   onChange={(e) => setDeliveryPartner(e.target.value)}
                   className="w-full appearance-none rounded-lg bg-slate-100 px-4 py-3 text-sm outline-none border-2 border-transparent focus:border-blue-500"
                 >
-                  <option value="blue_dart">Blue Dart</option>
-                  <option value="fedex">FedEx</option>
-                  <option value="bluedart">BlueDart</option>
+                  {deliveryPartners.map(p => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-3.5 text-slate-400" size={16} />
               </div>
@@ -144,7 +192,7 @@ const RateCalculatorPage = () => {
               <div>
                 <label className="mb-2 block text-xs font-bold text-slate-700">Package Type</label>
                 <div className="relative">
-                  <select 
+                  <select
                     value={packageType}
                     onChange={(e) => setPackageType(e.target.value)}
                     className="w-full appearance-none rounded-lg bg-slate-100 px-4 py-3 text-sm outline-none"
@@ -159,13 +207,13 @@ const RateCalculatorPage = () => {
               <div>
                 <label className="mb-2 block text-xs font-bold text-slate-700">Weight</label>
                 <div className="flex rounded-lg bg-slate-100 overflow-hidden">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={weight}
                     onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
                     min="0.1"
                     step="0.1"
-                    className="w-full bg-transparent px-4 py-3 text-sm outline-none" 
+                    className="w-full bg-transparent px-4 py-3 text-sm outline-none"
                   />
                   <span className="bg-slate-200 px-3 py-3 text-sm font-bold text-slate-500">kg</span>
                 </div>
@@ -181,12 +229,12 @@ const RateCalculatorPage = () => {
               <div className="flex gap-2">
                 {['length', 'width', 'height'].map((dim, idx) => (
                   <div key={idx} className="flex rounded-lg border border-slate-200 overflow-hidden">
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={dimensions[dim]}
-                      onChange={(e) => setDimensions({...dimensions, [dim]: parseFloat(e.target.value) || 0})}
+                      onChange={(e) => setDimensions({ ...dimensions, [dim]: parseFloat(e.target.value) || 0 })}
                       min="0"
-                      className="w-16 text-center text-sm outline-none px-2 py-2" 
+                      className="w-16 text-center text-sm outline-none px-2 py-2"
                       placeholder={dim.charAt(0).toUpperCase()}
                     />
                     <span className="bg-slate-50 px-2 py-2 text-[10px] font-bold text-slate-500 border-l border-slate-200">CM</span>
@@ -216,22 +264,22 @@ const RateCalculatorPage = () => {
               <label className="mb-3 block text-xs font-bold text-slate-700">Payment Mode</label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="payment" 
+                  <input
+                    type="radio"
+                    name="payment"
                     checked={paymentMode === 'prepaid'}
                     onChange={() => setPaymentMode('prepaid')}
-                    className="h-4 w-4 accent-blue-600" 
+                    className="h-4 w-4 accent-blue-600"
                   />
                   Prepaid
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input 
-                    type="radio" 
+                  <input
+                    type="radio"
                     name="payment"
                     checked={paymentMode === 'cod'}
                     onChange={() => setPaymentMode('cod')}
-                    className="h-4 w-4 accent-blue-600" 
+                    className="h-4 w-4 accent-blue-600"
                   />
                   Cash on Delivery (COD)
                 </label>
@@ -244,19 +292,19 @@ const RateCalculatorPage = () => {
         <div className="rounded-xl border border-slate-100 bg-white shadow-sm flex flex-col px-5">
           {/* Tabs */}
           <div className="flex border-b border-slate-100 font-bold text-sm">
-            <button 
+            <button
               onClick={() => setActiveTab('Forward')}
               className={`flex-1 py-4 ${activeTab === 'Forward' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-slate-800'}`}
             >
               Forward
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('RTO')}
               className={`flex-1 py-4 ${activeTab === 'RTO' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-slate-800'}`}
             >
               RTO
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('Reverse')}
               className={`flex-1 py-4 ${activeTab === 'Reverse' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-slate-800'}`}
             >
@@ -277,7 +325,7 @@ const RateCalculatorPage = () => {
                   <span className="text-2xl font-black">{formatCurrency(rateData.totalAmount || rateData.baseRate + rateData.additionalCharges)}</span>
                   <span className="text-xs font-medium text-slate-600">/Delivery in {rateData.estimatedDelivery || '1 days'}</span>
                 </div>
-                
+
                 <div className="absolute top-4 right-5 text-slate-800 opacity-80">
                   <Plane size={32} strokeWidth={1.5} />
                 </div>

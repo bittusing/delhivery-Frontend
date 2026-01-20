@@ -2,22 +2,29 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWallet } from '../hooks/useWallet';
-import { LogOut } from 'lucide-react';
+import { useShippingMode } from '../context/ShippingModeContext';
+import { LogOut, Globe, Truck } from 'lucide-react';
 import RechargeModal from './Wallet/RechargeModal';
 
-export default function Header({setIsSidebarOpen}) {
+export default function Header({ setIsSidebarOpen }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const modeDropdownRef = useRef(null);
   const { user, logout } = useAuth();
   const { balance, fetchBalance } = useWallet();
+  const { shippingMode, setShippingMode, SHIPPING_MODES } = useShippingMode();
   const navigate = useNavigate();
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
+      }
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target)) {
+        setIsModeDropdownOpen(false);
       }
     };
 
@@ -64,7 +71,7 @@ export default function Header({setIsSidebarOpen}) {
       {/* Left Section: Menu and Search Bar */}
       <div className="flex items-center">
         {/* Menu Icon */}
-        <img src="/images/icon/toggle-menu.png" alt="toggle-menu" className="cursor-pointer w-6 lg:w-auto" onClick={() => setIsSidebarOpen(prev => !prev)} /> 
+        <img src="/images/icon/toggle-menu.png" alt="toggle-menu" className="cursor-pointer w-6 lg:w-auto" onClick={() => setIsSidebarOpen(prev => !prev)} />
       </div>
 
       {/* Right Section: Wallet, ID/Account, and Profile */}
@@ -81,7 +88,7 @@ export default function Header({setIsSidebarOpen}) {
               <svg className="w-3 xl:w-4 h-3 xl:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg>
             </div>
           </div>
-          <input type="text" placeholder="Search multiple AWBs" className="w-32 lg:w-40 xl:w-52 text-black p-2 focus:outline-none bg-[#1318420D] placeholder:text-[10px] lg:placeholder:text-xs xl:placeholder:text-sm"/>
+          <input type="text" placeholder="Search multiple AWBs" className="w-32 lg:w-40 xl:w-52 text-black p-2 focus:outline-none bg-[#1318420D] placeholder:text-[10px] lg:placeholder:text-xs xl:placeholder:text-sm" />
           <button className="py-2 px-2 xl:px-3 bg-white ">
             <svg className="w-5 xl:w-5 h-4 xl:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
           </button>
@@ -93,7 +100,7 @@ export default function Header({setIsSidebarOpen}) {
         <div className="flex items-center space-x-2 xl:space-x-3">
           <div className="p-2 rounded-full bg-[#DC4D1C]">
             {/* Wallet Icon */}
-            <img src="/images/icon/iconoir_wallet.png" alt="iconoir_wallet" className='w-4 xl:w-auto h-4 xl:h-auto' />  
+            <img src="/images/icon/iconoir_wallet.png" alt="iconoir_wallet" className='w-4 xl:w-auto h-4 xl:h-auto' />
           </div>
           <div>
             <div className="text-[10px] lg:text-xs xl:text-sm text-[#131842] font-normal leading-5">Wallet Balance</div>
@@ -108,21 +115,81 @@ export default function Header({setIsSidebarOpen}) {
             Recharge
           </button>
         </div>
-        
+
         {/* Divider */}
         <div className="h-12 w-px bg-gray-300"></div>
 
-        {/* Account/ID Selector */}
-        <div className="flex items-center space-x-2 xl:space-x-3 cursor-pointer">
-          <div className="p-2 rounded-full bg-white">
-            {/* ID Card Icon */}
-            <img src="/images/icon/mynaui_truck.png" alt="mynaui_truck" className='w-4 xl:w-auto h-4 xl:h-auto' />
+        {/* Account/ID Selector / Mode Switcher */}
+        <div className="relative" ref={modeDropdownRef}>
+          <div
+            className="flex items-center space-x-2 xl:space-x-3 cursor-pointer"
+            onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
+          >
+            <div className="p-2 rounded-full bg-white">
+              {shippingMode === SHIPPING_MODES.INTERNATIONAL ? (
+                <Globe className="w-4 xl:w-5 h-4 xl:h-5 text-blue-600" />
+              ) : (
+                <img src="/images/icon/mynaui_truck.png" alt="mynaui_truck" className='w-4 xl:w-auto h-4 xl:h-auto' />
+              )}
+            </div>
+            <div>
+              <div className="text-[10px] lg:text-xs xl:text-sm text-[#131842] leading-5">879269-Shardainfotech</div>
+              <div className="font-semibold text-sm lg:text-base xl:text-lg text-gray-800 leading-5 capitalize">
+                {shippingMode}
+              </div>
+            </div>
+            <svg
+              className={`w-4 xl:w-5 h-4 xl:h-5 text-[#146BE6] transition-transform duration-200 ${isModeDropdownOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path>
+            </svg>
           </div>
-          <div>
-            <div className="text-[10px] lg:text-xs xl:text-sm text-[#131842] leading-5">879269-Shardainfotech</div>
-            <div className="font-semibold text-sm lg:text-base xl:text-lg text-gray-800 leading-5">Domestic</div>
-          </div>
-          <svg className="w-4 xl:w-5 h-4 xl:h-5 text-[#146BE6] hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg>
+
+          {/* Mode Dropdown Menu */}
+          {isModeDropdownOpen && (
+            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+              <div
+                className={`px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors ${shippingMode === SHIPPING_MODES.DOMESTIC ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                onClick={() => {
+                  setShippingMode(SHIPPING_MODES.DOMESTIC);
+                  setIsModeDropdownOpen(false);
+                  navigate('/dashboard');
+                  // Give a small delay to let state update before reload if we really want a reload
+                  setTimeout(() => window.location.reload(), 100);
+                }}
+              >
+                <div className="p-1.5 rounded-md bg-gray-100">
+                  <Truck className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold">Domestic</span>
+                  <span className="text-[10px] opacity-70">Ship within India</span>
+                </div>
+              </div>
+              <div
+                className={`px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors ${shippingMode === SHIPPING_MODES.INTERNATIONAL ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
+                onClick={() => {
+                  setShippingMode(SHIPPING_MODES.INTERNATIONAL);
+                  setIsModeDropdownOpen(false);
+                  navigate('/dashboard');
+                  // Give a small delay to let state update before reload if we really want a reload
+                  setTimeout(() => window.location.reload(), 100);
+                }}
+              >
+                <div className="p-1.5 rounded-md bg-gray-100">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold">International</span>
+                  <span className="text-[10px] opacity-70">Ship globally</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="h-12 w-px bg-gray-300"></div>
@@ -138,7 +205,7 @@ export default function Header({setIsSidebarOpen}) {
                 {getUserInitials()}
               </div>
             ) : (
-              <img src="/images/person-man.png" alt="Profile" className="object-cover w-full h-full"/>
+              <img src="/images/person-man.png" alt="Profile" className="object-cover w-full h-full" />
             )}
           </button>
 

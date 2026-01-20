@@ -7,24 +7,24 @@ class DashboardService {
   /**
    * Get dashboard statistics
    */
-  async getStats() {
-    const response = await api.get('/dashboard/stats');
+  async getStats(type = 'domestic') {
+    const response = await api.get(`/dashboard/stats?type=${type}`);
     return response.data;
   }
 
   /**
    * Get upcoming pickups
    */
-  async getUpcomingPickups(limit = 10) {
-    const response = await api.get(`/dashboard/upcoming-pickups?limit=${limit}`);
+  async getUpcomingPickups(limit = 10, type = 'domestic') {
+    const response = await api.get(`/dashboard/upcoming-pickups?limit=${limit}&type=${type}`);
     return response.data;
   }
 
   /**
    * Get performance graph data
    */
-  async getPerformanceData(period = 14) {
-    const response = await api.get(`/dashboard/performance?period=${period}`);
+  async getPerformanceData(period = 14, type = 'domestic') {
+    const response = await api.get(`/dashboard/performance?period=${period}&type=${type}`);
     return response.data;
   }
 }

@@ -14,11 +14,11 @@ export const useDashboard = () => {
   /**
    * Fetch dashboard statistics
    */
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (type = 'domestic') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await dashboardService.getStats();
+      const response = await dashboardService.getStats(type);
       if (response.success) {
         setStats(response.data);
         return response.data;
@@ -34,11 +34,11 @@ export const useDashboard = () => {
   /**
    * Fetch upcoming pickups
    */
-  const fetchUpcomingPickups = useCallback(async (limit = 10) => {
+  const fetchUpcomingPickups = useCallback(async (limit = 10, type = 'domestic') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await dashboardService.getUpcomingPickups(limit);
+      const response = await dashboardService.getUpcomingPickups(limit, type);
       if (response.success) {
         setUpcomingPickups(response.data.pickups || []);
         return response.data.pickups || [];
@@ -54,11 +54,11 @@ export const useDashboard = () => {
   /**
    * Fetch performance data
    */
-  const fetchPerformanceData = useCallback(async (period = 14) => {
+  const fetchPerformanceData = useCallback(async (period = 14, type = 'domestic') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await dashboardService.getPerformanceData(period);
+      const response = await dashboardService.getPerformanceData(period, type);
       if (response.success) {
         setPerformanceData(response.data.data || []);
         return response.data.data || [];

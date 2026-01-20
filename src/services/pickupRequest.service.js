@@ -17,7 +17,7 @@ class PickupRequestService {
    */
   async getPickupRequests(filters = {}) {
     const params = new URLSearchParams();
-    
+
     if (filters.status) params.append('status', filters.status);
     if (filters.location) params.append('location', filters.location);
     if (filters.startDate) params.append('startDate', filters.startDate);
@@ -25,6 +25,8 @@ class PickupRequestService {
     if (filters.search) params.append('search', filters.search);
     if (filters.limit) params.append('limit', filters.limit);
     if (filters.skip) params.append('skip', filters.skip);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.orderType) params.append('orderType', filters.orderType);
 
     const response = await api.get(`/pickup-requests?${params.toString()}`);
     return response.data;
@@ -41,16 +43,16 @@ class PickupRequestService {
   /**
    * Get available orders for pickup
    */
-  async getAvailableOrders(location) {
-    const response = await api.get(`/pickup-requests/available-orders?location=${location}`);
+  async getAvailableOrders(location, orderType = 'domestic') {
+    const response = await api.get(`/pickup-requests/available-orders?location=${location}&orderType=${orderType}`);
     return response.data;
   }
 
   /**
    * Get pickup locations
    */
-  async getPickupLocations() {
-    const response = await api.get('/pickup-requests/locations');
+  async getPickupLocations(orderType = 'domestic') {
+    const response = await api.get(`/pickup-requests/locations?orderType=${orderType}`);
     return response.data;
   }
 }

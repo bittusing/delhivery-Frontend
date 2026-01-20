@@ -1,20 +1,45 @@
-import React, { useState } from "react";
-import { 
-  HelpCircle, 
-  Plus, 
-  Search, 
-  ChevronDown, 
-  Info, 
-  X, 
-  Mail, 
-  RotateCcw, 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  HelpCircle,
+  Plus,
+  Search,
+  ChevronDown,
+  Info,
+  X,
+  Mail,
+  RotateCcw,
   AlertCircle,
-  ArrowUpDown
+  ArrowUpDown,
+  Loader2,
+  Clock,
+  CheckCircle2,
+  History,
+  Send,
+  MessageSquare
 } from "lucide-react";
+import { useSupport } from "../hooks/useSupport";
 
 const SupportPage = () => {
+  const {
+    tickets,
+    loading,
+    error,
+    fetchTickets,
+    createTicket,
+    fetchCategories,
+    categories
+  } = useSupport();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Open");
+  const [activeTab, setActiveTab] = useState("open");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [newTicket, setNewTicket] = useState({
+    subject: '',
+    category: '',
+    description: '',
+    relatedOrderId: '',
+    priority: 'medium'
+  });
 
   const shipmentIssues = [
     "Reattempt or Delay in delivery / consignee pickup / return",
@@ -32,6 +57,53 @@ const SupportPage = () => {
 
   const otherIssues = ["Tech Support", "Account"];
 
+  useEffect(() => {
+    fetchTickets({ status: activeTab });
+    fetchCategories();
+  }, [activeTab, fetchTickets, fetchCategories]);
+
+  const handleCreateTicket = async () => {
+    if (!newTicket.category || !newTicket.description || !newTicket.subject) {
+      alert("Please fill in the required fields");
+      return;
+    }
+
+    try {
+      await createTicket(newTicket);
+      setIsModalOpen(false);
+      setNewTicket({
+        subject: '',
+        category: '',
+        description: '',
+        relatedOrderId: '',
+        priority: 'medium'
+      });
+      fetchTickets({ status: activeTab });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'open': return <Clock className="w-4 h-4 text-orange-500" />;
+      case 'resolved': return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+      case 'closed': return <History className="w-4 h-4 text-gray-500" />;
+      default: return <Info className="w-4 h-4 text-blue-500" />;
+    }
+  };
+
   return (
     <div className="min-h-screen font-sans text-[#1a2b4b]">
       {/* Header Section */}
@@ -42,7 +114,7 @@ const SupportPage = () => {
             Learn More <HelpCircle className="w-5 h-5 text-[#4c6ef5] fill-[#4c6ef5]/10" />
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-2 px-5 py-2.5 bg-[#1d6ff2] text-white rounded-lg font-bold text-sm hover:bg-blue-700 shadow-sm transition-all"
         >
@@ -52,13 +124,12 @@ const SupportPage = () => {
 
       {/* Primary Tab Navigation */}
       <div className="flex gap-10 border-b border-gray-200 mb-4">
-        {["Open", "Resolved", "Closed"].map((tab) => (
+        {["open", "resolved", "closed"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`pb-3 text-sm font-bold transition-all relative ${
-              activeTab === tab ? "text-blue-600" : "text-gray-500 hover:text-[#1a2b4b]"
-            }`}
+            className={`pb-3 text-sm font-bold transition-all relative capitalize ${activeTab === tab ? "text-blue-600" : "text-gray-500 hover:text-[#1a2b4b]"
+              }`}
           >
             {tab}
             {activeTab === tab && (
@@ -75,16 +146,20 @@ const SupportPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center  mb-4">
-        <div className="flex items-center h-[-webkit-fill-available] gap-2 px-4 py-2 rounded-tl rounded-bl bg-[#fff] text-xs font-bold cursor-pointer text-[#1a2b4b]">
-          Ticket Id <ChevronDown className="w-4 h-4" />
-        </div>
-        <div className="relative rounded-tr rounded-br flex items-center bg-[#1318420D] border border-transparent focus-within:border-gray-300 transition-all">
-          <input 
-            className="bg-transparent pl-4 pr-10 py-2.5 text-sm w-64 focus:outline-none placeholder:text-gray-500 font-medium" 
-            placeholder="Search by ticket id" 
-          />
-          <Info className="absolute right-3 w-4 h-4 text-gray-400" />
+      <div className="flex items-center mb-4 gap-4">
+        <div className="flex items-center">
+          <div className="flex items-center h-10 gap-2 px-4 border border-r-0 border-gray-200 rounded-l-lg bg-white text-xs font-bold cursor-pointer text-[#1a2b4b]">
+            Ticket Id <ChevronDown className="w-4 h-4" />
+          </div>
+          <div className="relative flex items-center bg-[#f8f9fb] border border-gray-200 rounded-r-lg focus-within:border-blue-400 transition-all h-10">
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-transparent pl-4 pr-10 py-2.5 text-sm w-64 focus:outline-none placeholder:text-gray-500 font-medium"
+              placeholder="Search by ticket id"
+            />
+            <Search className="absolute right-3 w-4 h-4 text-gray-400" />
+          </div>
         </div>
       </div>
 
@@ -93,92 +168,197 @@ const SupportPage = () => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#e9ecef] text-[11px] uppercase text-gray-700 font-black border-b border-gray-200">
             <tr>
-              <th className="px-6 py-4">Ticket Id & AWB</th>
-              <th className="px-6 py-4">Raised By</th>
+              <th className="px-6 py-4">Ticket details</th>
+              <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-3 h-3 text-gray-400" /> Category - Sub Category
+                <div className="flex items-center gap-2 text-gray-700">
+                  <ArrowUpDown className="w-3 h-3" /> Category
                 </div>
               </th>
-              <th className="px-6 py-4">Ticket Created</th>
+              <th className="px-6 py-4">Created</th>
               <th className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-3 h-3 text-gray-400" /> Last Updated
+                <div className="flex items-center gap-2 text-gray-700">
+                  <ArrowUpDown className="w-3 h-3" /> Last Updated
                 </div>
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan="5" className="h-[400px]"></td>
-            </tr>
+            {loading ? (
+              <tr>
+                <td colSpan="5" className="h-[400px] text-center">
+                  <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto" />
+                  <p className="mt-4 text-gray-500 font-medium">Loading your tickets...</p>
+                </td>
+              </tr>
+            ) : tickets.length > 0 ? (
+              tickets.filter(t => t.ticketNumber.toLowerCase().includes(searchTerm.toLowerCase())).map((ticket) => (
+                <tr key={ticket._id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer group">
+                  <td className="px-6 py-4">
+                    <div className="font-bold text-blue-600 group-hover:underline">#{ticket.ticketNumber}</div>
+                    <div className="text-[13px] text-[#1a2b4b] font-semibold mt-1 truncate max-w-xs">{ticket.subject}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(ticket.status)}
+                      <span className="text-[12px] font-bold uppercase tracking-wider">{ticket.status}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-[13px] font-bold text-gray-700">{ticket.category}</div>
+                    <div className="text-[11px] text-gray-400 font-medium capitalize">{ticket.priority} Priority</div>
+                  </td>
+                  <td className="px-6 py-4 text-[12px] font-bold text-gray-500">
+                    {formatDate(ticket.createdAt)}
+                  </td>
+                  <td className="px-6 py-4 text-[12px] font-bold text-gray-500">
+                    {formatDate(ticket.updatedAt)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="h-[400px] text-center">
+                  <div className="max-w-xs mx-auto">
+                    <MessageSquare className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+                    <p className="text-gray-500 font-bold text-lg">No tickets found</p>
+                    <p className="text-gray-400 text-sm mt-2">Looks like you don't have any {activeTab} support tickets at the moment.</p>
+                    <button
+                      onClick={() => setIsModalOpen(true)}
+                      className="mt-6 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-bold text-sm hover:bg-blue-100 transition-colors"
+                    >
+                      Raise a new ticket
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* RAISE A TICKET POPUP */}
+      {/* RAISE A TICKET MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all">
-          <div className="bg-white w-full max-w-[720px] rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all p-4">
+          <div className="bg-white w-full max-w-[800px] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100">
+            <div className="flex justify-between items-center px-8 py-6 border-b border-gray-100 bg-gray-50/30">
               <div className="flex items-center gap-4">
-                <h2 className="text-[22px] font-black text-[#1a2b4b]">Raise a ticket</h2>
-                <div className="flex items-center gap-2 bg-[#f8f9fc] border border-gray-200 px-4 py-1.5 rounded-lg text-sm font-bold text-blue-600 cursor-pointer">
-                  Learn More <HelpCircle className="w-4 h-4" />
+                <h2 className="text-2xl font-black text-[#1a2b4b]">Raise a ticket</h2>
+                <div className="hidden sm:flex items-center gap-2 bg-white border border-gray-200 px-4 py-1.5 rounded-lg text-sm font-bold text-blue-600 cursor-pointer shadow-sm">
+                  Support Guide <HelpCircle className="w-4 h-4" />
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="bg-white p-2 rounded-full border border-gray-200 text-gray-400 hover:text-gray-900 shadow-sm transition-all hover:rotate-90">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Modal Scrollable Content */}
-            <div className="p-8 max-h-[75vh] overflow-y-auto">
-              <h3 className="text-lg font-extrabold text-[#1a2b4b] mb-1">Help us understand your issue</h3>
-              
-              <div className="mt-4">
-                <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-3">Shipment issue</p>
-                <div className="flex flex-wrap gap-2.5">
-                  {shipmentIssues.map((issue, idx) => (
-                    <button key={idx} className="px-4 py-2.5 bg-[#f8f9fc] hover:bg-gray-100 border border-transparent hover:border-gray-200 rounded-xl text-[13px] font-bold text-gray-700 transition-all text-left">
-                      {issue}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Modal Content */}
+            <div className="p-8 overflow-y-auto flex-grow space-y-8">
+              <section>
+                <h3 className="text-lg font-extrabold text-[#1a2b4b] mb-4">What category does your issue fall into?</h3>
 
-              <div className="mt-8">
-                <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-3">Other issue</p>
                 <div className="flex flex-wrap gap-2.5">
-                  {otherIssues.map((issue, idx) => (
-                    <button key={idx} className="px-4 py-2.5 bg-[#f8f9fc] hover:bg-gray-100 border border-transparent hover:border-gray-200 rounded-xl text-[13px] font-bold text-gray-700 transition-all">
+                  {[...shipmentIssues, ...otherIssues].map((issue, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setNewTicket(prev => ({ ...prev, category: issue }))}
+                      className={`px-4 py-3 border text-[13px] font-bold transition-all text-left rounded-xl flex items-center gap-2 ${newTicket.category === issue
+                          ? "bg-blue-600 border-blue-600 text-white shadow-md transform scale-105"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50/30"
+                        }`}
+                    >
+                      {newTicket.category === issue && <CheckCircle2 className="w-4 h-4" />}
                       {issue}
                     </button>
                   ))}
                 </div>
-              </div>
-              
-              <p className="text-[12px] text-gray-400 mt-8 font-bold">15 Dec 2025, 12:38 am</p>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-lg font-extrabold text-[#1a2b4b]">Tell us more details</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Subject *</label>
+                    <input
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all font-semibold"
+                      placeholder="Briefly describe the issue"
+                      value={newTicket.subject}
+                      onChange={(e) => setNewTicket(prev => ({ ...prev, subject: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Related Order / AWB (Optional)</label>
+                    <input
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all font-semibold"
+                      placeholder="e.g. ORD123 or AWB789"
+                      value={newTicket.relatedOrderId}
+                      onChange={(e) => setNewTicket(prev => ({ ...prev, relatedOrderId: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Detailed Description *</label>
+                  <textarea
+                    rows="4"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all font-semibold resize-none"
+                    placeholder="Provide as much detail as possible to help us solve your issue faster..."
+                    value={newTicket.description}
+                    onChange={(e) => setNewTicket(prev => ({ ...prev, description: e.target.value }))}
+                  ></textarea>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Priority</label>
+                  <div className="flex gap-4">
+                    {['low', 'medium', 'high'].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setNewTicket(prev => ({ ...prev, priority: p }))}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest border transition-all ${newTicket.priority === p
+                            ? (p === 'high' ? 'bg-red-500 border-red-500 text-white' : p === 'medium' ? 'bg-orange-500 border-orange-500 text-white' : 'bg-blue-600 border-blue-600 text-white')
+                            : 'bg-white text-gray-400 hover:border-gray-400'
+                          }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
             </div>
 
-            {/* Modal Sticky Footer */}
-            <div className="px-8 py-6 border-t border-gray-100 bg-white flex items-center justify-between">
-              <div className="flex items-center gap-8">
+            {/* Modal Footer */}
+            <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2.5 cursor-pointer group">
                   <div className="relative flex items-center">
-                    <input type="checkbox" defaultChecked className="w-5 h-5 accent-blue-600 rounded cursor-pointer" />
+                    <input type="checkbox" defaultChecked className="w-5 h-5 accent-blue-600 rounded cursor-pointer border-gray-300" />
                   </div>
                   <span className="text-[13px] font-bold text-gray-800">Email notifications</span>
                   <HelpCircle className="w-4 h-4 text-gray-400" />
                 </label>
-                <button className="flex items-center gap-2 text-[13px] font-bold text-blue-600 hover:text-blue-800 transition-colors">
-                  <Mail className="w-4 h-4" /> Add more CC emails
+              </div>
+
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-6 py-3 text-[13px] font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleCreateTicket}
+                  disabled={loading}
+                  className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2 px-8 py-3 bg-[#1d6ff2] text-white rounded-xl font-black text-[14px] hover:bg-blue-700 shadow-lg hover:shadow-blue-200 transition-all disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Submit Ticket
                 </button>
               </div>
-              <button className="flex items-center gap-2 text-[13px] font-bold text-blue-600 hover:text-blue-800 transition-colors">
-                <RotateCcw className="w-4 h-4" /> Reset Categories
-              </button>
             </div>
           </div>
         </div>

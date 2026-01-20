@@ -53,11 +53,11 @@ export const usePickupRequests = () => {
   /**
    * Fetch pickup locations
    */
-  const fetchLocations = useCallback(async () => {
+  const fetchLocations = useCallback(async (orderType = 'domestic') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await pickupRequestService.getPickupLocations();
+      const response = await pickupRequestService.getPickupLocations(orderType);
       if (response.success) {
         setLocations(response.data.locations || []);
         return response.data.locations || [];
@@ -73,11 +73,11 @@ export const usePickupRequests = () => {
   /**
    * Fetch available orders
    */
-  const fetchAvailableOrders = useCallback(async (location) => {
+  const fetchAvailableOrders = useCallback(async (location, orderType = 'domestic') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await pickupRequestService.getAvailableOrders(location);
+      const response = await pickupRequestService.getAvailableOrders(location, orderType);
       if (response.success) {
         setAvailableOrders(response.data.orders || []);
         return response.data.orders || [];

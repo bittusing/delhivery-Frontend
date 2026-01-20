@@ -2,16 +2,18 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import { Truck, ChevronDown, PrinterCheck, Loader2, Printer } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
+import { useShippingMode } from "../../context/ShippingModeContext";
 
 const UpcomingPickupsCard = () => {
   const navigate = useNavigate();
   const { upcomingPickups, loading, error, fetchUpcomingPickups } = useDashboard();
+  const { shippingMode } = useShippingMode();
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [showPrintMenu, setShowPrintMenu] = useState(null);
 
   useEffect(() => {
-    fetchUpcomingPickups(10);
-  }, [fetchUpcomingPickups]);
+    fetchUpcomingPickups(10, shippingMode);
+  }, [fetchUpcomingPickups, shippingMode]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -102,7 +104,7 @@ const UpcomingPickupsCard = () => {
               Print Selected ({selectedOrders.length})
             </button>
           )}
-          <button 
+          <button
             onClick={() => navigate('/create-pickup-request')}
             className="flex items-center text-blue-600 hover:text-blue-700 font-medium px-4 py-2 rounded-md transition duration-150 ease-in-out"
           >
@@ -138,8 +140,8 @@ const UpcomingPickupsCard = () => {
           <thead>
             <tr className="text-left border-b">
               <th className="py-2 px-2">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   onChange={(e) => handleSelectAll(e.target.checked)}
                   checked={selectedOrders.length === upcomingPickups.length && upcomingPickups.length > 0}
                 />
@@ -166,7 +168,7 @@ const UpcomingPickupsCard = () => {
                 return (
                   <tr key={idx} className="border-b">
                     <td className="py-3 px-2">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={(e) => handleSelectOrder(pickup.orderNumber, e.target.checked)}
@@ -175,7 +177,7 @@ const UpcomingPickupsCard = () => {
 
                     {/* AWB */}
                     <td className="py-3 px-2">
-                      <div 
+                      <div
                         className="text-blue-600 font-medium cursor-pointer text-xs hover:underline"
                         onClick={() => navigate(`/order-details?id=${pickup.orderNumber}`)}
                       >
@@ -213,7 +215,7 @@ const UpcomingPickupsCard = () => {
                     {/* Status */}
                     <td className="py-3 px-2 whitespace-nowrap">
                       <div className={`flex items-center gap-2 text-xs font-medium ${getStatusColor(pickup.status)}`}>
-                        <Truck className="w-4" /> 
+                        <Truck className="w-4" />
                         {pickup.status?.replace('_', ' ').toUpperCase() || 'PENDING'}
                       </div>
                     </td>
@@ -228,13 +230,13 @@ const UpcomingPickupsCard = () => {
                           }}
                           className="flex items-center gap-2 text-xs text-blue-600 cursor-pointer hover:text-blue-700 z-10 relative"
                         >
-                          <PrinterCheck className="w-4" /> Print <ChevronDown className="w-4"/>
+                          <PrinterCheck className="w-4" /> Print <ChevronDown className="w-4" />
                         </button>
-                        
+
                         {showPrintMenu === idx && (
                           <>
                             {/* Backdrop to close menu */}
-                            <div 
+                            <div
                               className="fixed inset-0 z-[9998]"
                               onClick={() => setShowPrintMenu(null)}
                               style={{ backgroundColor: 'transparent' }}

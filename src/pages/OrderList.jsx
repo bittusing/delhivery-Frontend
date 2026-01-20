@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Loader2, Package, Truck, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
+import { useShippingMode } from '../context/ShippingModeContext';
 
 const OrderList = () => {
   const navigate = useNavigate();
   const { orders, loading, error, fetchOrders } = useOrders();
+  const { shippingMode } = useShippingMode();
   const [filters, setFilters] = useState({
     status: '',
     deliveryPartner: '',
@@ -13,8 +15,8 @@ const OrderList = () => {
   });
 
   useEffect(() => {
-    fetchOrders(filters);
-  }, [filters]);
+    fetchOrders({ ...filters, type: shippingMode });
+  }, [filters, shippingMode, fetchOrders]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -109,9 +111,11 @@ const OrderList = () => {
           className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 bg-[#f1f4f9] min-w-[140px]"
         >
           <option value="">All Partners</option>
+          <option value="delhivery">Delhivery</option>
           <option value="fedex">FedEx</option>
           <option value="blue_dart">Blue Dart</option>
           <option value="bluedart">BlueDart</option>
+          <option value="overseas_logistic">Overseas Logistic</option>
         </select>
       </div>
 

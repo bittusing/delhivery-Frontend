@@ -7,9 +7,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    phone: '',
-    password: '',
-    loginType: 'email' // 'email' or 'phone'
+    password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,27 +29,13 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const loginData = {
-        password: formData.password
-      };
-
-      if (formData.loginType === 'email') {
-        if (!formData.email) {
-          setError('Email is required');
-          setLoading(false);
-          return;
-        }
-        loginData.email = formData.email;
-      } else {
-        if (!formData.phone) {
-          setError('Phone number is required');
-          setLoading(false);
-          return;
-        }
-        loginData.phone = formData.phone;
+      if (!formData.email) {
+        setError('Email is required');
+        setLoading(false);
+        return;
       }
 
-      await login(loginData);
+      await login(formData);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.');
@@ -92,74 +76,19 @@ const LoginPage = () => {
           )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Login Type Toggle */}
-            <div className="flex gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData(prev => ({ ...prev, loginType: 'email', phone: '' }));
-                  setError('');
-                }}
-                className={`flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all ${
-                  formData.loginType === 'email'
-                    ? 'bg-[#1a2b4b] text-white'
-                    : 'bg-slate-100 text-gray-600 hover:bg-slate-200'
-                }`}
-              >
-                Email
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData(prev => ({ ...prev, loginType: 'phone', email: '' }));
-                  setError('');
-                }}
-                className={`flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all ${
-                  formData.loginType === 'phone'
-                    ? 'bg-[#1a2b4b] text-white'
-                    : 'bg-slate-100 text-gray-600 hover:bg-slate-200'
-                }`}
-              >
-                Phone
-              </button>
-            </div>
-
             {/* Email Input */}
-            {formData.loginType === 'email' && (
-              <div>
-                <label className="block text-sm font-bold text-[#1a2b4b] mb-2">Email</label>
-                <input 
-                  type="email" 
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="mail@example.com"
-                  className="w-full bg-slate-100 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  required
-                />
-              </div>
-            )}
-
-            {/* Phone Number Input */}
-            {formData.loginType === 'phone' && (
-              <div>
-                <label className="block text-sm font-bold text-[#1a2b4b] mb-2">Phone Number</label>
-                <div className="flex gap-2">
-                  <div className="bg-slate-100 rounded-xl p-4 text-sm text-[#1a2b4b] font-medium min-w-[60px] text-center">
-                    +91
-                  </div>
-                  <input 
-                    type="tel" 
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="Enter mobile number"
-                    className="flex-1 bg-slate-100 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    required
-                  />
-                </div>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-bold text-[#1a2b4b] mb-2">Email</label>
+              <input 
+                type="email" 
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="rosan@gmail.com"
+                className="w-full bg-slate-100 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                required
+              />
+            </div>
 
             {/* Password Input */}
             <div>
@@ -170,7 +99,7 @@ const LoginPage = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="Enter your password"
+                  placeholder="••••••"
                   className="w-full bg-slate-100 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all pr-12"
                   required
                 />

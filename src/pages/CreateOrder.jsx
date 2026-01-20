@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, Loader2, Check, Info } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
 import { useWallet } from '../hooks/useWallet';
+import { useShippingMode } from '../context/ShippingModeContext';
 import RechargeModal from '../components/Wallet/RechargeModal';
+import KYCGuard from '../components/KYCGuard';
 
 // InputField component moved outside to prevent recreation on every render
 const InputField = React.memo(({ label, value, onChange, error, placeholder, type = 'text', required = false, maxLength = null, min = null, step = null }) => {
@@ -20,7 +22,7 @@ const InputField = React.memo(({ label, value, onChange, error, placeholder, typ
           // Handle phone and pincode length restrictions
           if (type === 'tel' && inputValue.length > 10) {
             inputValue = inputValue.slice(0, 10);
-          } else if (label.toLowerCase().includes('pincode') && inputValue.length > 6) {
+          } else if (label.toLowerCase().includes('pincode') && inputValue.length > 6 && !label.toLowerCase().includes('country')) {
             inputValue = inputValue.slice(0, 6);
           }
           onChange(inputValue);
@@ -29,9 +31,8 @@ const InputField = React.memo(({ label, value, onChange, error, placeholder, typ
         maxLength={maxLength}
         min={min}
         step={step}
-        className={`w-full border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:border-blue-500 ${
-          error ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
-        }`}
+        className={`w-full border rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:border-blue-500 ${error ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-200'
+          }`}
         style={{ pointerEvents: 'auto', zIndex: 1 }}
       />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -53,7 +54,8 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const { calculateRate, createOrder, loading, error } = useOrders();
   const { balance, fetchBalance } = useWallet();
-  
+  const { shippingMode, getDeliveryPartners, isInternational } = useShippingMode();
+
   const [formData, setFormData] = useState({
     pickupDetails: {
       name: '',
@@ -61,7 +63,8 @@ const CreateOrder = () => {
       address: '',
       pincode: '',
       city: '',
-      state: ''
+      state: '',
+      country: 'India'
     },
     deliveryDetails: {
       name: '',
@@ -69,7 +72,8 @@ const CreateOrder = () => {
       address: '',
       pincode: '',
       city: '',
-      state: ''
+      state: '',
+      country: isInternational ? '' : 'India'
     },
     packageDetails: {
       weight: '',
@@ -81,7 +85,7 @@ const CreateOrder = () => {
       description: '',
       declaredValue: ''
     },
-    deliveryPartner: 'fedex'
+    deliveryPartner: ''
   });
 
   const [rate, setRate] = useState(null);
@@ -90,12 +94,14 @@ const CreateOrder = () => {
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
-  const deliveryPartners = [
-    { value: 'fedex', label: 'FedEx' },
-    { value: 'blue_dart', label: 'Blue Dart' },
-    { value: 'bluedart', label: 'BlueDart' },
-    { value: 'delhivery', label: 'Delhivery' },
-  ];
+  const deliveryPartners = getDeliveryPartners();
+
+  // Set default partner when partners list changes
+  useEffect(() => {
+    if (deliveryPartners.length > 0 && !formData.deliveryPartner) {
+      setFormData(prev => ({ ...prev, deliveryPartner: deliveryPartners[0].value }));
+    }
+  }, [deliveryPartners]);
 
   const handleChange = useCallback((section, field, value) => {
     setFormData(prev => ({
@@ -144,19 +150,30 @@ const CreateOrder = () => {
 
     // Validate pickup details
     if (!formData.pickupDetails.name.trim()) errors['pickupDetails.name'] = 'Name is required';
-    if (!formData.pickupDetails.phone.match(/^[0-9]{10}$/)) errors['pickupDetails.phone'] = 'Valid 10-digit phone required';
+    if (!isInternational && !formData.pickupDetails.phone.match(/^[0-9]{10}$/)) {
+      errors['pickupDetails.phone'] = 'Valid 10-digit phone required';
+    } else if (!formData.pickupDetails.phone.trim()) {
+      errors['pickupDetails.phone'] = 'Phone is required';
+    }
     if (!formData.pickupDetails.address.trim() || formData.pickupDetails.address.length < 10) errors['pickupDetails.address'] = 'Address must be at least 10 characters';
-    if (!formData.pickupDetails.pincode.match(/^[0-9]{6}$/)) errors['pickupDetails.pincode'] = 'Valid 6-digit pincode required';
+    if (!isInternational && !formData.pickupDetails.pincode.match(/^[0-9]{6}$/)) errors['pickupDetails.pincode'] = 'Valid 6-digit pincode required';
     if (!formData.pickupDetails.city.trim()) errors['pickupDetails.city'] = 'City is required';
     if (!formData.pickupDetails.state.trim()) errors['pickupDetails.state'] = 'State is required';
+    if (!formData.pickupDetails.country.trim()) errors['pickupDetails.country'] = 'Country is required';
 
     // Validate delivery details
     if (!formData.deliveryDetails.name.trim()) errors['deliveryDetails.name'] = 'Name is required';
-    if (!formData.deliveryDetails.phone.match(/^[0-9]{10}$/)) errors['deliveryDetails.phone'] = 'Valid 10-digit phone required';
+    if (!isInternational && !formData.deliveryDetails.phone.match(/^[0-9]{10}$/)) {
+      errors['deliveryDetails.phone'] = 'Valid 10-digit phone required';
+    } else if (!formData.deliveryDetails.phone.trim()) {
+      errors['deliveryDetails.phone'] = 'Phone is required';
+    }
     if (!formData.deliveryDetails.address.trim() || formData.deliveryDetails.address.length < 10) errors['deliveryDetails.address'] = 'Address must be at least 10 characters';
-    if (!formData.deliveryDetails.pincode.match(/^[0-9]{6}$/)) errors['deliveryDetails.pincode'] = 'Valid 6-digit pincode required';
+    if (!isInternational && !formData.deliveryDetails.pincode.match(/^[0-9]{6}$/)) errors['deliveryDetails.pincode'] = 'Valid 6-digit pincode required';
     if (!formData.deliveryDetails.city.trim()) errors['deliveryDetails.city'] = 'City is required';
     if (!formData.deliveryDetails.state.trim()) errors['deliveryDetails.state'] = 'State is required';
+    if (!formData.deliveryDetails.country.trim()) errors['deliveryDetails.country'] = 'Country is required';
+    if (isInternational && !formData.deliveryDetails.email?.trim()) errors['deliveryDetails.email'] = 'Email is required for international';
 
     // Validate package details
     const weight = parseFloat(formData.packageDetails.weight);
@@ -168,9 +185,12 @@ const CreateOrder = () => {
 
   const handleCalculateRate = useCallback(async () => {
     // Validate essential fields
+    const hasPincode = isInternational
+      ? (formData.pickupDetails.pincode.trim() && formData.deliveryDetails.pincode.trim())
+      : (formData.pickupDetails.pincode.match(/^[0-9]{6}$/) && formData.deliveryDetails.pincode.match(/^[0-9]{6}$/));
+
     if (
-      !formData.pickupDetails.pincode.match(/^[0-9]{6}$/) ||
-      !formData.deliveryDetails.pincode.match(/^[0-9]{6}$/) ||
+      !hasPincode ||
       !formData.packageDetails.weight ||
       parseFloat(formData.packageDetails.weight) < 0.1
     ) {
@@ -184,11 +204,14 @@ const CreateOrder = () => {
       const rateData = {
         pickupPincode: formData.pickupDetails.pincode,
         deliveryPincode: formData.deliveryDetails.pincode,
+        pickupCountry: formData.pickupDetails.country,
+        deliveryCountry: formData.deliveryDetails.country,
         weight: parseFloat(formData.packageDetails.weight),
         length: parseFloat(formData.packageDetails.dimensions.length) || 0,
         width: parseFloat(formData.packageDetails.dimensions.width) || 0,
         height: parseFloat(formData.packageDetails.dimensions.height) || 0,
-        deliveryPartner: formData.deliveryPartner
+        deliveryPartner: formData.deliveryPartner,
+        orderType: shippingMode
       };
 
       const result = await calculateRate(rateData);
@@ -198,7 +221,7 @@ const CreateOrder = () => {
     } finally {
       setCalculatingRate(false);
     }
-  }, [formData.pickupDetails.pincode, formData.deliveryDetails.pincode, formData.packageDetails.weight, formData.packageDetails.dimensions, formData.deliveryPartner, calculateRate]);
+  }, [formData.pickupDetails.pincode, formData.deliveryDetails.pincode, formData.pickupDetails.country, formData.deliveryDetails.country, formData.packageDetails.weight, formData.packageDetails.dimensions, formData.deliveryPartner, calculateRate, shippingMode, isInternational]);
 
   const handleCreateOrder = async () => {
     if (!validateForm()) {
@@ -218,6 +241,7 @@ const CreateOrder = () => {
 
     try {
       const orderData = {
+        orderType: shippingMode,
         pickupDetails: formData.pickupDetails,
         deliveryDetails: formData.deliveryDetails,
         packageDetails: {
@@ -234,7 +258,7 @@ const CreateOrder = () => {
       };
 
       const result = await createOrder(orderData);
-      
+
       // Success - redirect to order details
       navigate(`/order-details?id=${result.order.id}`);
     } catch (err) {
@@ -244,11 +268,18 @@ const CreateOrder = () => {
 
   useEffect(() => {
     // Auto-calculate rate when essential fields change
+    const hasPincode = isInternational
+      ? (formData.pickupDetails.pincode.trim() && formData.deliveryDetails.pincode.trim())
+      : (formData.pickupDetails.pincode.match(/^[0-9]{6}$/) && formData.deliveryDetails.pincode.match(/^[0-9]{6}$/));
+
+    const hasCountry = formData.pickupDetails.country?.trim() && formData.deliveryDetails.country?.trim();
+
     if (
-      formData.pickupDetails.pincode.match(/^[0-9]{6}$/) &&
-      formData.deliveryDetails.pincode.match(/^[0-9]{6}$/) &&
+      hasPincode &&
+      hasCountry &&
       formData.packageDetails.weight &&
-      parseFloat(formData.packageDetails.weight) >= 0.1
+      parseFloat(formData.packageDetails.weight) >= 0.1 &&
+      formData.deliveryPartner
     ) {
       const timer = setTimeout(() => {
         handleCalculateRate();
@@ -258,38 +289,43 @@ const CreateOrder = () => {
   }, [
     formData.pickupDetails.pincode,
     formData.deliveryDetails.pincode,
+    formData.pickupDetails.country,
+    formData.deliveryDetails.country,
     formData.packageDetails.weight,
     formData.deliveryPartner,
+    shippingMode,
+    isInternational,
     handleCalculateRate
   ]);
 
   return (
-    <div className="min-h-screen mb-24" style={{ pointerEvents: 'auto' }}>
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate(-1)} className="cursor-pointer">
-          <ArrowLeft className="w-6 h-6 text-gray-600" />
-        </button>
-        <h1 className="text-xl font-bold text-[#131842]">Create Order</h1>
-      </div>
-
-      {/* Error Message */}
-      {(error || rateError) && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
-          <AlertCircle size={16} />
-          <span>{error || rateError}</span>
+    <KYCGuard message="Complete KYC verification to create orders and start shipping with us.">
+      <div className="min-h-screen mb-24" style={{ pointerEvents: 'auto' }}>
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <button onClick={() => navigate(-1)} className="cursor-pointer">
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </button>
+          <h1 className="text-xl font-bold text-[#131842]">Create Order</h1>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-6">
-        {/* LEFT COLUMN */}
+        {/* Error Message */}
+        {(error || rateError) && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-sm">
+            <AlertCircle size={16} />
+            <span>{error || rateError}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-6">
+          {/* LEFT COLUMN */}
         <div className="space-y-4">
           {/* Pickup Details */}
           <div className="bg-white border rounded-lg p-4 space-y-4">
             <h3 className="font-semibold flex items-center gap-2 text-sm">
               <span>📍</span> Pickup Details
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
                 label="Name"
@@ -310,7 +346,7 @@ const CreateOrder = () => {
                 maxLength={10}
               />
             </div>
-            
+
             <InputField
               label="Address"
               value={formData.pickupDetails.address}
@@ -319,18 +355,47 @@ const CreateOrder = () => {
               placeholder="Enter complete address"
               required
             />
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField
+                label="Country"
+                value={formData.pickupDetails.country}
+                onChange={(val) => handleChange('pickupDetails', 'country', val)}
+                error={formErrors['pickupDetails.country']}
+                placeholder="India"
+                required
+              />
+              <InputField
+                label="Company Name (Optional)"
+                value={formData.pickupDetails.companyName}
+                onChange={(val) => handleChange('pickupDetails', 'companyName', val)}
+                error={formErrors['pickupDetails.companyName']}
+                placeholder="Enter company name"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField
+                label="Email"
+                type="email"
+                value={formData.pickupDetails.email}
+                onChange={(val) => handleChange('pickupDetails', 'email', val)}
+                error={formErrors['pickupDetails.email']}
+                placeholder="Enter email address"
+                required={isInternational}
+              />
               <InputField
                 label="Pincode"
                 type="text"
                 value={formData.pickupDetails.pincode}
                 onChange={(val) => handleChange('pickupDetails', 'pincode', val.replace(/\D/g, ''))}
                 error={formErrors['pickupDetails.pincode']}
-                placeholder="6-digit pincode"
+                placeholder="Pincode"
                 required
-                maxLength={6}
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
                 label="City"
                 value={formData.pickupDetails.city}
@@ -355,7 +420,7 @@ const CreateOrder = () => {
             <h3 className="font-semibold flex items-center gap-2 text-sm">
               <span>🚚</span> Delivery Details
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
                 label="Name"
@@ -371,12 +436,51 @@ const CreateOrder = () => {
                 value={formData.deliveryDetails.phone}
                 onChange={(val) => handleChange('deliveryDetails', 'phone', val.replace(/\D/g, ''))}
                 error={formErrors['deliveryDetails.phone']}
-                placeholder="10-digit mobile number"
+                placeholder="Mobile number"
                 required
-                maxLength={10}
+                maxLength={15}
               />
             </div>
-            
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField
+                label="Country"
+                value={formData.deliveryDetails.country}
+                onChange={(val) => handleChange('deliveryDetails', 'country', val)}
+                error={formErrors['deliveryDetails.country']}
+                placeholder="e.g. USA, UK"
+                required
+              />
+              <InputField
+                label="Company Name (Optional)"
+                value={formData.deliveryDetails.companyName}
+                onChange={(val) => handleChange('deliveryDetails', 'companyName', val)}
+                error={formErrors['deliveryDetails.companyName']}
+                placeholder="Enter company name"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField
+                label="Email"
+                type="email"
+                value={formData.deliveryDetails.email}
+                onChange={(val) => handleChange('deliveryDetails', 'email', val)}
+                error={formErrors['deliveryDetails.email']}
+                placeholder="Enter email address"
+                required={isInternational}
+              />
+              <InputField
+                label="Pincode"
+                type="text"
+                value={formData.deliveryDetails.pincode}
+                onChange={(val) => handleChange('deliveryDetails', 'pincode', val)}
+                error={formErrors['deliveryDetails.pincode']}
+                placeholder="Pincode"
+                required
+              />
+            </div>
+
             <InputField
               label="Address"
               value={formData.deliveryDetails.address}
@@ -385,18 +489,8 @@ const CreateOrder = () => {
               placeholder="Enter complete address"
               required
             />
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <InputField
-                label="Pincode"
-                type="text"
-                value={formData.deliveryDetails.pincode}
-                onChange={(val) => handleChange('deliveryDetails', 'pincode', val.replace(/\D/g, ''))}
-                error={formErrors['deliveryDetails.pincode']}
-                placeholder="6-digit pincode"
-                required
-                maxLength={6}
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
                 label="City"
                 value={formData.deliveryDetails.city}
@@ -421,7 +515,7 @@ const CreateOrder = () => {
             <h3 className="font-semibold flex items-center gap-2 text-sm">
               <span>🚛</span> Delivery Partner
             </h3>
-            
+
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Select Delivery Partner</label>
               <select
@@ -444,7 +538,7 @@ const CreateOrder = () => {
             <h3 className="font-semibold flex items-center gap-2 text-sm">
               <span>📦</span> Package Details
             </h3>
-            
+
             <InputField
               label="Weight (kg)"
               type="number"
@@ -456,7 +550,7 @@ const CreateOrder = () => {
               min="0.1"
               step="0.1"
             />
-            
+
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Dimensions (cm) - Optional</label>
               <div className="flex gap-2">
@@ -492,14 +586,14 @@ const CreateOrder = () => {
                 />
               </div>
             </div>
-            
+
             <InputField
               label="Description (Optional)"
               value={formData.packageDetails.description}
               onChange={(val) => handlePackageChange('description', val)}
               placeholder="Package description"
             />
-            
+
             <InputField
               label="Declared Value (₹) - Optional"
               type="number"
@@ -517,7 +611,7 @@ const CreateOrder = () => {
               <h3 className="font-semibold flex items-center gap-2 text-sm">
                 <span>💰</span> Shipping Rate
               </h3>
-              
+
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Rate</span>
@@ -605,7 +699,8 @@ const CreateOrder = () => {
           setShowRechargeModal(false);
         }}
       />
-    </div>
+      </div>
+    </KYCGuard>
   );
 };
 

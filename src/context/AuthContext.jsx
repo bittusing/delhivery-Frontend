@@ -39,14 +39,14 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await api.post('/auth/login', credentials);
-      
+
       if (response.data.success) {
         const { user: userData, token } = response.data.data;
-        
+
         // Store token and user in localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
-        
+
         setUser(userData);
         return { success: true, user: userData };
       } else {
@@ -61,23 +61,23 @@ export const AuthProvider = ({ children }) => {
   const signup = async (userData) => {
     try {
       const response = await api.post('/auth/signup', userData);
-      
+
       if (response.data.success) {
         const { user: newUser, token } = response.data.data;
-        
+
         // Store token and user in localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(newUser));
-        
+
         setUser(newUser);
         return { success: true, user: newUser };
       } else {
         throw new Error(response.data.message || 'Signup failed');
       }
     } catch (error) {
-      const message = error.response?.data?.message || 
-                     error.response?.data?.errors?.[0]?.msg || 
-                     error.message || 'Signup failed';
+      const message = error.response?.data?.message ||
+        error.response?.data?.errors?.[0]?.msg ||
+        error.message || 'Signup failed';
       throw new Error(message);
     }
   };

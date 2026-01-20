@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Truck, ChevronDown, Loader2 } from 'lucide-react';
 import { useDashboard } from '../../hooks/useDashboard';
+import { useShippingMode } from "../../context/ShippingModeContext";
 import {
   LineChart,
   Line,
@@ -14,15 +15,16 @@ import {
 export default function PerformanceGraph() {
   const [selectedPeriod, setSelectedPeriod] = useState('14');
   const { performanceData, loading, error, fetchPerformanceData } = useDashboard();
+  const { shippingMode } = useShippingMode();
 
   useEffect(() => {
     const days = selectedPeriod === 'All Time' ? 365 : parseInt(selectedPeriod);
-    fetchPerformanceData(days);
-  }, [selectedPeriod, fetchPerformanceData]);
+    fetchPerformanceData(days, shippingMode);
+  }, [selectedPeriod, fetchPerformanceData, shippingMode]);
 
   // Calculate max value for Y axis
-  const maxValue = performanceData.length > 0 
-    ? Math.max(...performanceData.map(d => d.value), 50) 
+  const maxValue = performanceData.length > 0
+    ? Math.max(...performanceData.map(d => d.value), 50)
     : 250;
   const yAxisMax = Math.ceil(maxValue / 50) * 50; // Round to nearest 50
 

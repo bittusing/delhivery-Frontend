@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDashboard } from '../../hooks/useDashboard';
+import { useShippingMode } from '../../context/ShippingModeContext';
 
 // Card component for individual metrics
 const MetricCard = ({ title, value, percentage, subText, icon, code }) => (
@@ -43,7 +44,7 @@ const formatDate = (date) => {
 const CustomDateInput = React.forwardRef(({ value, onClick }, ref) => {
   // Format the date range for display
   const displayValue = value || 'Select date range';
-  
+
   return (
     <div
       ref={ref}
@@ -60,7 +61,8 @@ const CustomDateInput = React.forwardRef(({ value, onClick }, ref) => {
 const Topheader = () => {
   const navigate = useNavigate();
   const { stats, loading, error, fetchStats } = useDashboard();
-  
+  const { shippingMode } = useShippingMode();
+
   // Date range state
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
@@ -69,17 +71,17 @@ const Topheader = () => {
   });
   const [endDate, setEndDate] = useState(new Date());
 
-  // Update stats when date range changes
+  // Update stats when date range or shipping mode changes
   useEffect(() => {
-    fetchStats();
-  }, [startDate, endDate, fetchStats]);
+    fetchStats(shippingMode);
+  }, [startDate, endDate, fetchStats, shippingMode]);
 
   return (
     <div className='mb-6'>
       {/* --- Header Section --- */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex space-x-4">
-          <button 
+          <button
             onClick={() => navigate('/rate-calculator')}
             className="flex items-center space-x-2 p-2 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition duration-150 cursor-pointer"
           >
@@ -88,7 +90,7 @@ const Topheader = () => {
               <img src="/images/icon/calculate_icon.png" alt="calculate_icon" />
             </div>
           </button>
-          <button 
+          <button
             onClick={() => {
               // Open documentation or help page
               window.open('https://help.flywell.com', '_blank');
@@ -101,7 +103,7 @@ const Topheader = () => {
             </div>
           </button>
         </div>
-        
+
         {/* Date Range Picker */}
         <DatePicker
           selectsRange={true}

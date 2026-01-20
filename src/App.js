@@ -76,6 +76,16 @@ function App() {
         />
 
         <Route
+          path="/international-orders"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
+                <Pages.InternationalOrdersPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/forward-orders"
           element={
             <ProtectedRoute>
