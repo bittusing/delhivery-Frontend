@@ -70,10 +70,13 @@ const KYCVerification = ({ onClose }) => {
     setLoading(true);
 
     try {
+      // Convert date format from DD-MM-YYYY to DD/MM/YYYY for API
+      const formattedDOB = dateOfBirth.replace(/-/g, '/');
+
       const response = await api.post('/kyc/pan/verify', {
         pan: panNumber,
         nameAsPerPAN: nameAsPerPAN,
-        dateOfBirth: dateOfBirth
+        dateOfBirth: formattedDOB
       });
 
       if (response.data.success) {
