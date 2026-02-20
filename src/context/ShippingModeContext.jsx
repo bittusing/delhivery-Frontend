@@ -33,10 +33,11 @@ export const ShippingModeProvider = ({ children }) => {
     const getDeliveryPartners = () => {
         if (shippingMode === SHIPPING_MODES.DOMESTIC) {
             return [
-                { value: 'delhivery', label: 'Delhivery' },
-                { value: 'blue_dart', label: 'Blue Dart' },
-                { value: 'bluedart', label: 'BlueDart' },
-                { value: 'fedex', label: 'FedEx' },
+                { value: 'nimbuspost', label: 'NimbusPost' },
+                // { value: 'delhivery', label: 'Delhivery' },
+                // { value: 'blue_dart', label: 'Blue Dart' },
+                // { value: 'bluedart', label: 'BlueDart' },
+                // { value: 'fedex', label: 'FedEx' },
             ];
         } else {
             return [
