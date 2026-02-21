@@ -5,6 +5,9 @@ import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import SignupPage from './components/Authentication/SignUp.jsx';
 import LoginPage from './components/Authentication/Login.jsx';
+import LandingPage from './pages/LandingPage.jsx';
+import About from './pages/About.jsx';
+import Contact from './pages/Contact.jsx';
 import { useAuth } from './hooks/useAuth';
 import * as Pages from './pages/index.js'
 import OrderDetailsPage from './pages/orderDetailsPage/index.jsx';
@@ -43,7 +46,23 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public routes */}
+        {/* Public Landing Page */}
+        <Route 
+          path="/" 
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} 
+        />
+        
+        {/* Public About and Contact Pages */}
+        <Route 
+          path="/about" 
+          element={<About />} 
+        />
+        <Route 
+          path="/contact" 
+          element={<Contact />} 
+        />
+        
+        {/* Public Auth routes */}
         <Route 
           path="/login" 
           element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
@@ -53,17 +72,7 @@ function App() {
           element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage />} 
         />
 
-        {/* Protected routes */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
-                <Pages.DashboardPage />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
+        {/* Protected routes - Dashboard */}
         <Route
           path="/dashboard"
           element={

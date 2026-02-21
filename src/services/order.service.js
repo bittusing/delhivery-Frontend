@@ -32,9 +32,17 @@ class OrderService {
     if (filters.skip) params.append('skip', filters.skip);
     if (filters.type) params.append('type', filters.type);
     if (filters.orderType) params.append('orderType', filters.orderType);
+    if (filters.search) params.append('search', filters.search);
 
     const response = await api.get(`/orders?${params.toString()}`);
     return response.data;
+  }
+
+  /**
+   * Get orders (alias for getUserOrders)
+   */
+  async getOrders(filters = {}) {
+    return this.getUserOrders(filters);
   }
 
   /**

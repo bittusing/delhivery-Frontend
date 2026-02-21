@@ -22,9 +22,16 @@ const InvoicesPage = () => {
   const [error, setError] = useState(null);
   
   // Filters
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  endDate.setDate(endDate.getDate() + 14);
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30); // Start from 30 days ago
+    return date;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 14); // End 14 days from now
+    return date;
+  });
   
   const [searchQuery, setSearchQuery] = useState("");
 

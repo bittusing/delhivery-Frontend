@@ -17,6 +17,7 @@ import RechargeModal from "../components/Wallet/RechargeModal";
 const WalletPage = () => {
   const [activeTab, setActiveTab] = useState("Transactions");
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
+  const [downloadingLedger, setDownloadingLedger] = useState(false);
   const [filters, setFilters] = useState({
     type: "",
     page: 1,
@@ -89,6 +90,38 @@ const WalletPage = () => {
     }).format(amount);
   };
 
+  const handleDownloadLedger = async () => {
+    setDownloadingLedger(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/wallet/ledger/export`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download ledger');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `wallet-ledger-${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading ledger:', error);
+      alert('Failed to download ledger. Please try again.');
+    } finally {
+      setDownloadingLedger(false);
+    }
+  };
+
   return (
     <div className="min-h-screen font-sans text-[#1a2b4b]">
       {/* Top Header Section */}
@@ -100,8 +133,17 @@ const WalletPage = () => {
           </div>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg bg-white font-bold text-sm text-[#1a2b4b] hover:bg-gray-50">
-            <Download className="w-4 h-4" /> Download Ledger
+          <button 
+            onClick={handleDownloadLedger}
+            disabled={downloadingLedger}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg bg-white font-bold text-sm text-[#1a2b4b] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {downloadingLedger ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Download Ledger
           </button>
           <button 
             onClick={() => setIsRechargeModalOpen(true)}

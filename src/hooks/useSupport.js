@@ -18,7 +18,7 @@ export const useSupport = () => {
             setError(null);
             const response = await supportService.getTickets(filters);
             if (response.success) {
-                setTickets(response.data);
+                setTickets(response.data.tickets || response.data || []);
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to fetch tickets');
@@ -33,7 +33,7 @@ export const useSupport = () => {
             setError(null);
             const response = await supportService.getTicketById(ticketId);
             if (response.success) {
-                setCurrentTicket(response.data);
+                setCurrentTicket(response.data.ticket || response.data);
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to fetch ticket details');
@@ -100,7 +100,7 @@ export const useSupport = () => {
         try {
             const response = await supportService.getStats();
             if (response.success) {
-                setStats(response.data);
+                setStats(response.data.stats || response.data);
             }
         } catch (err) {
             console.error('Failed to fetch stats:', err);
@@ -111,7 +111,7 @@ export const useSupport = () => {
         try {
             const response = await supportService.getCategories();
             if (response.success) {
-                setCategories(response.data);
+                setCategories(response.data.categories || response.data || []);
             }
         } catch (err) {
             console.error('Failed to fetch categories:', err);
