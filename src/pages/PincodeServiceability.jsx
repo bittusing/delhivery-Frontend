@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Download, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import api from '../config/api';
 
 const PincodeServiceabilityPage = () => {
   const [pincode, setPincode] = useState('');
@@ -22,7 +20,7 @@ const PincodeServiceabilityPage = () => {
     setResult(null);
 
     try {
-      const response = await axios.post(`${API_URL}/pincode/check`, { pincode });
+      const response = await api.post('/pincode/check', { pincode });
       setResult(response.data.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to check serviceability');
@@ -34,7 +32,7 @@ const PincodeServiceabilityPage = () => {
   const handleExportFile = async () => {
     setDownloading(true);
     try {
-      const response = await axios.get(`${API_URL}/pincode/export`, {
+      const response = await api.get('/pincode/export', {
         responseType: 'blob'
       });
       

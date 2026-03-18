@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useWallet } from "../hooks/useWallet";
 import RechargeModal from "../components/Wallet/RechargeModal";
+import api from "../config/api";
 
 const WalletPage = () => {
   const [activeTab, setActiveTab] = useState("Transactions");
@@ -93,19 +94,11 @@ const WalletPage = () => {
   const handleDownloadLedger = async () => {
     setDownloadingLedger(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/wallet/ledger/export`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await api.get('/wallet/ledger/export', {
+        responseType: 'blob'
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to download ledger');
-      }
-
-      const blob = await response.blob();
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
