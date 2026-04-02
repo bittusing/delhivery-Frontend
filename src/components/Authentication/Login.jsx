@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import GoogleAuthBlock from './GoogleAuthBlock';
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -11,7 +12,7 @@ const LoginPage = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -92,7 +93,15 @@ const LoginPage = () => {
 
             {/* Password Input */}
             <div>
-              <label className="block text-sm font-bold text-[#1a2b4b] mb-2">Password</label>
+              <div className="flex justify-between items-center mb-2 gap-2">
+                <label className="text-sm font-bold text-[#1a2b4b]">Password</label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-blue-600 font-semibold hover:underline shrink-0"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <input 
                   type={showPassword ? "text" : "password"} 
@@ -122,6 +131,16 @@ const LoginPage = () => {
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+
+          <GoogleAuthBlock
+            variant="login"
+            setError={setError}
+            setLoading={setLoading}
+            onCredential={async (idToken) => {
+              await loginWithGoogle(idToken);
+              navigate('/dashboard');
+            }}
+          />
 
           {/* Signup Link */}
           <p className="text-center mt-6 text-sm text-slate-600">

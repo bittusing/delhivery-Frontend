@@ -53,7 +53,11 @@ export const AuthProvider = ({ children }) => {
         throw new Error(response.data.message || 'Login failed');
       }
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Login failed';
+      const message =
+        error.apiHint ||
+        error.response?.data?.message ||
+        error.message ||
+        'Login failed';
       throw new Error(message);
     }
   };
@@ -88,11 +92,78 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const loginWithGoogle = async (idToken) => {
+    try {
+      const response = await api.post('/auth/google', { idToken });
+
+      if (response.data.success) {
+        const { user: userData, token } = response.data.data;
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        setUser(userData);
+        return { success: true, user: userData };
+      }
+
+      throw new Error(response.data.message || 'Google sign-in failed');
+    } catch (error) {
+      const message =
+        error.apiHint ||
+        error.response?.data?.message ||
+        error.response?.data?.errors?.[0]?.msg ||
+        error.message ||
+        'Google sign-in failed';
+      throw new Error(message);
+    }
+  };
+
+  const requestPasswordReset = async (email) => {
+    try {
+      const response = await api.post('/auth/forgot-password', { email });
+
+      if (response.data.success) {
+        return response.data.data?.message || response.data.message || 'Check your email for next steps.';
+      }
+
+      throw new Error(response.data.message || 'Request failed');
+    } catch (error) {
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.errors?.[0]?.msg ||
+        error.message ||
+        'Request failed';
+      throw new Error(message);
+    }
+  };
+
+  const resetPasswordWithToken = async (token, password) => {
+    try {
+      const response = await api.post('/auth/reset-password', { token, password });
+
+      if (response.data.success) {
+        return response.data.data?.message || response.data.message || 'Password updated.';
+      }
+
+      throw new Error(response.data.message || 'Reset failed');
+    } catch (error) {
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.errors?.[0]?.msg ||
+        error.message ||
+        'Reset failed';
+      throw new Error(message);
+    }
+  };
+
   const value = {
     user,
     loading,
     login,
     signup,
+    loginWithGoogle,
+    requestPasswordReset,
+    resetPasswordWithToken,
     logout,
     isAuthenticated: !!user
   };

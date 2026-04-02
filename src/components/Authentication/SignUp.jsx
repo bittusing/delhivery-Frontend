@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import GoogleAuthBlock from './GoogleAuthBlock';
 
 const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +17,7 @@ const SignupPage = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -216,6 +217,16 @@ const SignupPage = () => {
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
+
+          <GoogleAuthBlock
+            variant="signup"
+            setError={setError}
+            setLoading={setLoading}
+            onCredential={async (idToken) => {
+              await loginWithGoogle(idToken);
+              navigate('/dashboard');
+            }}
+          />
 
           {/* Login Link */}
           <p className="text-center mt-6 text-sm text-slate-600">
