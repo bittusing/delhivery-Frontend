@@ -54,7 +54,7 @@ const CreateOrder = () => {
   const navigate = useNavigate();
   const { calculateRate, createOrder, loading, error } = useOrders();
   const { balance, fetchBalance } = useWallet();
-  const { shippingMode, getDeliveryPartners, isInternational } = useShippingMode();
+  const { shippingMode, getDeliveryPartners, isInternational, isDomestic } = useShippingMode();
 
   const [formData, setFormData] = useState({
     pickupDetails: {
@@ -88,6 +88,8 @@ const CreateOrder = () => {
     deliveryPartner: ''
   });
 
+  const [paymentType, setPaymentType] = useState('prepaid');
+  const [selectedNimbusCourierId, setSelectedNimbusCourierId] = useState(null);
   const [rate, setRate] = useState(null);
   const [calculatingRate, setCalculatingRate] = useState(false);
   const [rateError, setRateError] = useState('');
@@ -96,12 +98,27 @@ const CreateOrder = () => {
 
   const deliveryPartners = getDeliveryPartners();
 
-  // Set default partner when partners list changes
+  // Keep delivery partner valid when switching domestic / international
   useEffect(() => {
-    if (deliveryPartners.length > 0 && !formData.deliveryPartner) {
-      setFormData(prev => ({ ...prev, deliveryPartner: deliveryPartners[0].value }));
-    }
+    if (deliveryPartners.length === 0) return;
+    setFormData(prev => {
+      const valid = deliveryPartners.some(p => p.value === prev.deliveryPartner);
+      if (!valid) {
+        return { ...prev, deliveryPartner: deliveryPartners[0].value };
+      }
+      return prev;
+    });
   }, [deliveryPartners]);
+
+  useEffect(() => {
+    if (isDomestic) {
+      setFormData(prev =>
+        prev.deliveryPartner === 'nimbuspost'
+          ? prev
+          : { ...prev, deliveryPartner: 'nimbuspost' }
+      );
+    }
+  }, [isDomestic]);
 
   const handleChange = useCallback((section, field, value) => {
     setFormData(prev => ({
@@ -210,8 +227,10 @@ const CreateOrder = () => {
         length: parseFloat(formData.packageDetails.dimensions.length) || 0,
         width: parseFloat(formData.packageDetails.dimensions.width) || 0,
         height: parseFloat(formData.packageDetails.dimensions.height) || 0,
+        declaredValue: parseFloat(formData.packageDetails.declaredValue) || 0,
         deliveryPartner: formData.deliveryPartner,
-        orderType: shippingMode
+        orderType: shippingMode,
+        paymentType
       };
 
       const result = await calculateRate(rateData);
@@ -221,7 +240,50 @@ const CreateOrder = () => {
     } finally {
       setCalculatingRate(false);
     }
-  }, [formData.pickupDetails.pincode, formData.deliveryDetails.pincode, formData.pickupDetails.country, formData.deliveryDetails.country, formData.packageDetails.weight, formData.packageDetails.dimensions, formData.deliveryPartner, calculateRate, shippingMode, isInternational]);
+  }, [
+    formData.pickupDetails.pincode,
+    formData.deliveryDetails.pincode,
+    formData.pickupDetails.country,
+    formData.deliveryDetails.country,
+    formData.packageDetails.weight,
+    formData.packageDetails.dimensions,
+    formData.packageDetails.declaredValue,
+    formData.deliveryPartner,
+    calculateRate,
+    shippingMode,
+    isInternational,
+    paymentType
+  ]);
+
+  const selectedNimbusCourier = useMemo(() => {
+    if (!isDomestic || !rate?.courierOptions?.length || !selectedNimbusCourierId) {
+      return null;
+    }
+    return rate.courierOptions.find(
+      c => String(c.id) === String(selectedNimbusCourierId)
+    );
+  }, [isDomestic, rate, selectedNimbusCourierId]);
+
+  const effectiveOrderTotal = useMemo(() => {
+    if (selectedNimbusCourier) {
+      return selectedNimbusCourier.totalCharges;
+    }
+    return rate?.totalAmount ?? 0;
+  }, [selectedNimbusCourier, rate]);
+
+  useEffect(() => {
+    if (!isDomestic || !rate?.courierOptions?.length) {
+      setSelectedNimbusCourierId(null);
+      return;
+    }
+    setSelectedNimbusCourierId(prev => {
+      const opts = rate.courierOptions;
+      if (prev && opts.some(c => String(c.id) === String(prev))) {
+        return prev;
+      }
+      return String(opts[0].id);
+    });
+  }, [isDomestic, rate]);
 
   const handleCreateOrder = async () => {
     if (!validateForm()) {
@@ -233,8 +295,21 @@ const CreateOrder = () => {
       return;
     }
 
-    // Check wallet balance
-    if (balance < rate.totalAmount) {
+    if (
+      isDomestic &&
+      formData.deliveryPartner === 'nimbuspost'
+    ) {
+      if (!rate.courierOptions?.length) {
+        setRateError('No courier options from Nimbus. Check pincodes and try again.');
+        return;
+      }
+      if (!selectedNimbusCourierId) {
+        setRateError('Please select a courier option');
+        return;
+      }
+    }
+
+    if (balance < effectiveOrderTotal) {
       setShowRechargeModal(true);
       return;
     }
@@ -254,8 +329,13 @@ const CreateOrder = () => {
           description: formData.packageDetails.description || '',
           declaredValue: parseFloat(formData.packageDetails.declaredValue) || 0
         },
-        deliveryPartner: formData.deliveryPartner
+        deliveryPartner: formData.deliveryPartner,
+        paymentType
       };
+
+      if (isDomestic && formData.deliveryPartner === 'nimbuspost' && selectedNimbusCourierId) {
+        orderData.nimbusCourierId = String(selectedNimbusCourierId);
+      }
 
       const result = await createOrder(orderData);
 
@@ -292,9 +372,11 @@ const CreateOrder = () => {
     formData.pickupDetails.country,
     formData.deliveryDetails.country,
     formData.packageDetails.weight,
+    formData.packageDetails.declaredValue,
     formData.deliveryPartner,
     shippingMode,
     isInternational,
+    paymentType,
     handleCalculateRate
   ]);
 
@@ -510,25 +592,27 @@ const CreateOrder = () => {
             </div>
           </div>
 
-          {/* Delivery Partner */}
-          <div className="bg-white border rounded-lg p-4 space-y-4">
-            <h3 className="font-semibold flex items-center gap-2 text-sm">
-              <span>🚛</span> Delivery Partner
-            </h3>
+          {/* Delivery Partner — hidden for domestic (always NimbusPost) */}
+          {!isDomestic && (
+            <div className="bg-white border rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold flex items-center gap-2 text-sm">
+                <span>🚛</span> Delivery Partner
+              </h3>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-700">Select Delivery Partner</label>
-              <select
-                value={formData.deliveryPartner}
-                onChange={(e) => setFormData(prev => ({ ...prev, deliveryPartner: e.target.value }))}
-                className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-              >
-                {deliveryPartners.map(partner => (
-                  <option key={partner.value} value={partner.value}>{partner.label}</option>
-                ))}
-              </select>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Select Delivery Partner</label>
+                <select
+                  value={formData.deliveryPartner}
+                  onChange={(e) => setFormData(prev => ({ ...prev, deliveryPartner: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  {deliveryPartners.map(partner => (
+                    <option key={partner.value} value={partner.value}>{partner.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* RIGHT COLUMN */}
@@ -612,18 +696,86 @@ const CreateOrder = () => {
                 <span>💰</span> Shipping Rate
               </h3>
 
+              {isDomestic && formData.deliveryPartner === 'nimbuspost' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Payment type</label>
+                  <select
+                    value={paymentType}
+                    onChange={e => setPaymentType(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="prepaid">Prepaid</option>
+                    <option value="cod">COD</option>
+                  </select>
+                </div>
+              )}
+
+              {isDomestic &&
+                formData.deliveryPartner === 'nimbuspost' &&
+                rate.courierOptions?.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-700">Select courier</p>
+                    <div className="space-y-2 max-h-56 overflow-y-auto">
+                      {rate.courierOptions.map(opt => (
+                        <label
+                          key={String(opt.id)}
+                          className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer text-sm ${
+                            String(selectedNimbusCourierId) === String(opt.id)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="nimbusCourier"
+                            className="mt-1"
+                            checked={String(selectedNimbusCourierId) === String(opt.id)}
+                            onChange={() => setSelectedNimbusCourierId(String(opt.id))}
+                          />
+                          <span className="flex-1">
+                            <span className="font-medium text-gray-900 block">{opt.name}</span>
+                            <span className="text-xs text-gray-500">
+                              Freight ₹{Number(opt.freightCharges).toFixed(2)}
+                              {(opt.codCharges || 0) > 0 && (
+                                <> · COD ₹{Number(opt.codCharges || 0).toFixed(2)}</>
+                              )}
+                            </span>
+                          </span>
+                          <span className="font-semibold text-blue-600 whitespace-nowrap">
+                            ₹{Number(opt.totalCharges).toFixed(2)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Rate</span>
-                  <span className="font-semibold">₹{rate.baseRate?.toFixed(2) || '0.00'}</span>
+                  <span className="font-semibold">
+                    ₹
+                    {(selectedNimbusCourier
+                      ? selectedNimbusCourier.freightCharges
+                      : rate.baseRate
+                    )?.toFixed(2) || '0.00'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Additional Charges</span>
-                  <span className="font-semibold">₹{rate.additionalCharges?.toFixed(2) || '0.00'}</span>
+                  <span className="font-semibold">
+                    ₹
+                    {(selectedNimbusCourier
+                      ? selectedNimbusCourier.codCharges
+                      : rate.additionalCharges
+                    )?.toFixed(2) || '0.00'}
+                  </span>
                 </div>
                 <div className="border-t pt-2 flex justify-between">
                   <span className="font-semibold">Total Amount</span>
-                  <span className="font-bold text-lg text-blue-600">₹{rate.totalAmount?.toFixed(2) || '0.00'}</span>
+                  <span className="font-bold text-lg text-blue-600">
+                    ₹{effectiveOrderTotal.toFixed(2)}
+                  </span>
                 </div>
                 {rate.estimatedDelivery && (
                   <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
@@ -653,7 +805,7 @@ const CreateOrder = () => {
               <span className="text-sm font-medium text-gray-700">Wallet Balance</span>
               <span className="font-bold text-lg text-blue-600">₹{balance?.toFixed(2) || '0.00'}</span>
             </div>
-            {rate && balance < rate.totalAmount && (
+            {rate && balance < effectiveOrderTotal && (
               <div className="flex items-center gap-2 text-xs text-red-600 mt-2">
                 <AlertCircle size={14} />
                 <span>Insufficient balance. Please recharge.</span>
@@ -673,7 +825,14 @@ const CreateOrder = () => {
         </button>
         <button
           onClick={handleCreateOrder}
-          disabled={loading || !rate || calculatingRate}
+          disabled={
+            loading ||
+            !rate ||
+            calculatingRate ||
+            (isDomestic &&
+              formData.deliveryPartner === 'nimbuspost' &&
+              (!rate.courierOptions?.length || !selectedNimbusCourierId))
+          }
           className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
         >
           {loading ? (
