@@ -71,34 +71,63 @@ class OrderService {
 
   /**
    * Nimbus ship.nimbuspost.com — download shipping label PDF.
+   * On 4xx/5xx the server sends JSON; with responseType blob that body is a Blob — parse it for a real message.
    */
   async downloadNimbusLabel(orderId) {
-    const response = await api.post(
-      `/orders/${orderId}/nimbus/label`,
-      {},
-      { responseType: 'blob' }
-    );
-    const contentType = response.headers['content-type'] || '';
-    if (contentType.includes('application/json')) {
-      const text = await response.data.text();
-      return JSON.parse(text);
+    try {
+      const response = await api.post(
+        `/orders/${orderId}/nimbus/label`,
+        {},
+        { responseType: 'blob' }
+      );
+      const contentType = response.headers['content-type'] || '';
+      if (contentType.includes('application/json')) {
+        const text = await response.data.text();
+        return JSON.parse(text);
+      }
+      const blob = response.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      let filename = 'shipping-label.pdf';
+      const cd = response.headers['content-disposition'];
+      if (cd && cd.includes('filename=')) {
+        const m = cd.match(/filename="?([^";\n]+)"?/i);
+        if (m) filename = m[1];
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return { success: true };
+    } catch (err) {
+      const status = err.response?.status;
+      const raw = err.response?.data;
+      if (raw instanceof Blob) {
+        const text = await raw.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          throw new Error(text || `Request failed (${status})`);
+        }
+        const msg = json.message || json.error || text;
+        const e = new Error(msg);
+        e.status = status;
+        e.payload = json;
+        throw e;
+      }
+      throw err;
     }
-    const blob = response.data;
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    let filename = 'shipping-label.pdf';
-    const cd = response.headers['content-disposition'];
-    if (cd && cd.includes('filename=')) {
-      const m = cd.match(/filename="?([^";\n]+)"?/i);
-      if (m) filename = m[1];
-    }
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    return { success: true };
+  }
+
+  /**
+   * Nimbus api.nimbuspost.com/v1 — cancel shipment for this order (uses AWB).
+   */
+  async cancelNimbusShipment(orderId) {
+    const response = await api.post(`/orders/${orderId}/nimbus/cancel`);
+    return response.data;
   }
 }
 

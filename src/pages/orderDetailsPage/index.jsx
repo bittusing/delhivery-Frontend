@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Package, MapPin, Truck, CheckCircle, Clock, AlertCircle, Copy, FileDown } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, MapPin, Truck, CheckCircle, Clock, AlertCircle, Copy, FileDown, Ban } from 'lucide-react';
 import { useOrders } from '../../hooks/useOrders';
 import orderService from '../../services/order.service';
 
@@ -142,6 +142,38 @@ function OrderDetailsPage() {
     }
   };
 
+  const handleNimbusCancelShipment = async () => {
+    const id = order?._id || orderId;
+    if (!id) return;
+    if (
+      !window.confirm(
+        'Cancel this shipment with NimbusPost? This uses your Nimbus API (AWB). Continue?'
+      )
+    ) {
+      return;
+    }
+    setNimbusNotice(null);
+    setNimbusBusy('cancel');
+    try {
+      const res = await orderService.cancelNimbusShipment(id);
+      setNimbusNotice({
+        type: 'ok',
+        text:
+          res?.message ||
+          (typeof res?.data === 'object' && res?.data?.message) ||
+          'Shipment cancelled with NimbusPost'
+      });
+      await loadOrder();
+    } catch (err) {
+      setNimbusNotice({
+        type: 'err',
+        text: err.response?.data?.message || err.message || 'Cancel failed'
+      });
+    } finally {
+      setNimbusBusy(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -169,6 +201,9 @@ function OrderDetailsPage() {
 
   const isNimbus = order.deliveryPartner === 'nimbuspost';
   const hasNimbusShipment = Boolean(order.metadata?.nimbusShipmentId);
+  const hasAwb = Boolean(order.awb && String(order.awb).trim());
+  const canCancelNimbus =
+    isNimbus && hasAwb && order.status !== 'cancelled' && order.status !== 'delivered';
 
   return (
     <div className="min-h-screen mb-24">
@@ -352,6 +387,11 @@ function OrderDetailsPage() {
                   booking).
                 </p>
               )}
+              {isNimbus && !hasAwb && (
+                <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded p-2">
+                  Cancel shipment uses the AWB from Nimbus — it appears after booking / AWB assignment.
+                </p>
+              )}
               {nimbusNotice && (
                 <p
                   className={`text-xs rounded p-2 ${
@@ -389,6 +429,19 @@ function OrderDetailsPage() {
                     <FileDown className="w-4 h-4" />
                   )}
                   Download label
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNimbusCancelShipment}
+                  disabled={!!nimbusBusy || !canCancelNimbus}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50 disabled:opacity-50"
+                >
+                  {nimbusBusy === 'cancel' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Ban className="w-4 h-4" />
+                  )}
+                  Cancel shipment
                 </button>
               </div>
               {order.metadata?.labelUrl && (
