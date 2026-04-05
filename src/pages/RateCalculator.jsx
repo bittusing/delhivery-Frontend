@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Info, Plane, Truck, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
 import { useShippingMode } from '../context/ShippingModeContext';
 
 const RateCalculatorPage = () => {
   const { calculateRate, loading, error } = useOrders();
-  const { shippingMode, getDeliveryPartners, isInternational } = useShippingMode();
+  const { shippingMode, getDeliveryPartners, isInternational, isDomestic } = useShippingMode();
   const [activeTab, setActiveTab] = useState('Forward');
   const [rateData, setRateData] = useState(null);
   const [calculating, setCalculating] = useState(false);
@@ -20,6 +21,7 @@ const RateCalculatorPage = () => {
   const [dimensions, setDimensions] = useState({ length: 10, width: 10, height: 10 });
   const [paymentMode, setPaymentMode] = useState('prepaid');
   const [deliveryPartner, setDeliveryPartner] = useState('');
+  const [selectedCourierId, setSelectedCourierId] = useState(null);
 
   const deliveryPartners = getDeliveryPartners();
 
@@ -28,6 +30,12 @@ const RateCalculatorPage = () => {
       setDeliveryPartner(deliveryPartners[0].value);
     }
   }, [deliveryPartners, deliveryPartner]);
+
+  useEffect(() => {
+    if (isDomestic) {
+      setDeliveryPartner((prev) => (prev === 'nimbuspost' ? prev : 'nimbuspost'));
+    }
+  }, [isDomestic]);
 
   // Update countries when mode changes
   useEffect(() => {
@@ -57,7 +65,7 @@ const RateCalculatorPage = () => {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [pickupPincode, deliveryPincode, weight, dimensions, deliveryPartner, shippingMode]);
+  }, [pickupPincode, deliveryPincode, weight, dimensions, deliveryPartner, shippingMode, paymentMode]);
 
   const handleCalculateRate = async () => {
     setCalculating(true);
@@ -91,6 +99,15 @@ const RateCalculatorPage = () => {
       setCalculating(false);
     }
   };
+
+  const selectedCourier = useMemo(() => {
+    if (!rateData?.courierOptions?.length || !selectedCourierId) return null;
+    return rateData.courierOptions.find((c) => String(c.id) === String(selectedCourierId));
+  }, [rateData, selectedCourierId]);
+
+  const displayTotal = selectedCourier
+    ? selectedCourier.totalCharges
+    : rateData?.totalAmount ?? rateData?.baseRate;
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -171,21 +188,31 @@ const RateCalculatorPage = () => {
               </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-xs font-bold text-slate-700">Delivery Partner</label>
-              <div className="relative">
-                <select
-                  value={deliveryPartner}
-                  onChange={(e) => setDeliveryPartner(e.target.value)}
-                  className="w-full appearance-none rounded-lg bg-slate-100 px-4 py-3 text-sm outline-none border-2 border-transparent focus:border-blue-500"
-                >
-                  {deliveryPartners.map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-3.5 text-slate-400" size={16} />
+            {!isDomestic && (
+              <div>
+                <label className="mb-2 block text-xs font-bold text-slate-700">Delivery Partner</label>
+                <div className="relative">
+                  <select
+                    value={deliveryPartner}
+                    onChange={(e) => setDeliveryPartner(e.target.value)}
+                    className="w-full appearance-none rounded-lg bg-slate-100 px-4 py-3 text-sm outline-none border-2 border-transparent focus:border-blue-500"
+                  >
+                    {deliveryPartners.map(p => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-3.5 text-slate-400" size={16} />
+                </div>
               </div>
-            </div>
+            )}
+            {isDomestic && (
+              <p className="text-xs text-slate-600 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                Domestic rates use <span className="font-semibold">NimbusPost</span>. Create an order to book —
+                then use <span className="font-semibold">Forward Orders</span> or <span className="font-semibold">Order details</span> for{' '}
+                <span className="font-semibold">pickup</span> and <span className="font-semibold">label</span> (requires{' '}
+                <code className="text-[10px] bg-white px-1 rounded">NIMBUSPOST_API_KEY</code> in backend).
+              </p>
+            )}
 
             {/* Package Type and Weight */}
             <div className="grid grid-cols-2 gap-4">
@@ -318,33 +345,104 @@ const RateCalculatorPage = () => {
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
             ) : rateData ? (
-              // Rate Card 1 - Express
-              <div className="rounded-xl bg-slate-50 p-5 relative">
-                <div className="mb-1 text-[11px] font-bold text-slate-800">Express</div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-black">{formatCurrency(rateData.totalAmount || rateData.baseRate + rateData.additionalCharges)}</span>
-                  <span className="text-xs font-medium text-slate-600">/Delivery in {rateData.estimatedDelivery || '1 days'}</span>
-                </div>
+              <div className="space-y-4">
+                {isDomestic &&
+                  deliveryPartner === 'nimbuspost' &&
+                  rateData.courierOptions?.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                        Courier options (Nimbus)
+                      </p>
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                        {rateData.courierOptions.map((opt) => (
+                          <label
+                            key={String(opt.id)}
+                            className={`flex items-start gap-2 p-3 rounded-lg border cursor-pointer text-xs ${
+                              String(selectedCourierId) === String(opt.id)
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-slate-200 bg-white'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="rate-courier"
+                              className="mt-0.5"
+                              checked={String(selectedCourierId) === String(opt.id)}
+                              onChange={() => setSelectedCourierId(String(opt.id))}
+                            />
+                            <span className="flex-1">
+                              <span className="font-semibold text-slate-900 block">{opt.name}</span>
+                              <span className="text-slate-500">
+                                Freight {formatCurrency(opt.freightCharges)}
+                                {(opt.codCharges || 0) > 0 && (
+                                  <> · COD {formatCurrency(opt.codCharges)}</>
+                                )}
+                              </span>
+                            </span>
+                            <span className="font-bold text-blue-600 whitespace-nowrap">
+                              {formatCurrency(opt.totalCharges)}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                <div className="absolute top-4 right-5 text-slate-800 opacity-80">
-                  <Plane size={32} strokeWidth={1.5} />
-                </div>
+                <div className="rounded-xl bg-slate-50 p-5 relative">
+                  <div className="mb-1 text-[11px] font-bold text-slate-800">
+                    {selectedCourier?.name || rateData.courierName || rateData.serviceType || 'Express'}
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black">
+                      {formatCurrency(
+                        displayTotal ??
+                          rateData.totalAmount ??
+                          (rateData.baseRate || 0) + (rateData.additionalCharges || 0)
+                      )}
+                    </span>
+                    <span className="text-xs font-medium text-slate-600">
+                      / {rateData.estimatedDelivery || 'Estimated delivery'}
+                    </span>
+                  </div>
 
-                <div className="mt-4 flex items-start gap-2 border-t border-slate-200 pt-3 text-[10px] leading-relaxed text-slate-600">
-                  <Info size={14} className="mt-0.5 flex-none text-slate-400" />
-                  <div>
-                    <p>Shipping cost: {formatCurrency(rateData.baseRate || 30.00)}</p>
-                    {rateData.additionalCharges > 0 && (
-                      <p>+ Destination city surcharge: {formatCurrency(rateData.additionalCharges)}</p>
-                    )}
-                    {rateData.gst && (
-                      <p>+ GST charge: {formatCurrency(rateData.gst)}</p>
-                    )}
-                    {rateData.dph && (
-                      <p>+ Diesel Price Hike (DPH) charge: {formatCurrency(rateData.dph)}</p>
-                    )}
+                  <div className="absolute top-4 right-5 text-slate-800 opacity-80">
+                    <Plane size={32} strokeWidth={1.5} />
+                  </div>
+
+                  <div className="mt-4 flex items-start gap-2 border-t border-slate-200 pt-3 text-[10px] leading-relaxed text-slate-600">
+                    <Info size={14} className="mt-0.5 flex-none text-slate-400" />
+                    <div>
+                      <p>
+                        Shipping cost:{' '}
+                        {formatCurrency(
+                          selectedCourier?.freightCharges ?? rateData.baseRate ?? 30.0
+                        )}
+                      </p>
+                      {(selectedCourier?.codCharges || rateData.additionalCharges) > 0 && (
+                        <p>
+                          + COD / other:{' '}
+                          {formatCurrency(
+                            selectedCourier?.codCharges ?? rateData.additionalCharges ?? 0
+                          )}
+                        </p>
+                      )}
+                      {rateData.gst ? (
+                        <p>+ GST charge: {formatCurrency(rateData.gst)}</p>
+                      ) : null}
+                      {rateData.dph ? (
+                        <p>+ DPH charge: {formatCurrency(rateData.dph)}</p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
+
+                <p className="text-[11px] text-slate-600 text-center">
+                  Book shipment on{' '}
+                  <Link to="/create-order" className="font-semibold text-blue-600 hover:underline">
+                    Create order
+                  </Link>
+                  , then request pickup & label from orders list.
+                </p>
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500 text-sm">

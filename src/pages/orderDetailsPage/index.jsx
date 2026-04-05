@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Package, MapPin, Truck, CheckCircle, Clock, AlertCircle, Copy } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, MapPin, Truck, CheckCircle, Clock, AlertCircle, Copy, FileDown } from 'lucide-react';
 import { useOrders } from '../../hooks/useOrders';
+import orderService from '../../services/order.service';
 
 function OrderDetailsPage() {
   const [searchParams] = useSearchParams();
@@ -12,6 +13,8 @@ function OrderDetailsPage() {
   const [order, setOrder] = useState(null);
   const [tracking, setTracking] = useState(null);
   const [loadingTracking, setLoadingTracking] = useState(false);
+  const [nimbusBusy, setNimbusBusy] = useState(null);
+  const [nimbusNotice, setNimbusNotice] = useState(null);
 
   useEffect(() => {
     if (orderId) {
@@ -101,6 +104,44 @@ function OrderDetailsPage() {
     navigator.clipboard.writeText(text);
   };
 
+  const handleNimbusPickup = async () => {
+    const id = order?._id || orderId;
+    if (!id) return;
+    setNimbusNotice(null);
+    setNimbusBusy('pickup');
+    try {
+      const res = await orderService.requestNimbusPickup(id);
+      if (res?.success) {
+        setNimbusNotice({ type: 'ok', text: res.message || 'Pickup requested' });
+      }
+    } catch (err) {
+      setNimbusNotice({
+        type: 'err',
+        text: err.response?.data?.message || err.message || 'Pickup failed'
+      });
+    } finally {
+      setNimbusBusy(null);
+    }
+  };
+
+  const handleNimbusLabel = async () => {
+    const id = order?._id || orderId;
+    if (!id) return;
+    setNimbusNotice(null);
+    setNimbusBusy('label');
+    try {
+      await orderService.downloadNimbusLabel(id);
+      setNimbusNotice({ type: 'ok', text: 'Label download started' });
+    } catch (err) {
+      setNimbusNotice({
+        type: 'err',
+        text: err.response?.data?.message || err.message || 'Label failed'
+      });
+    } finally {
+      setNimbusBusy(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -125,6 +166,9 @@ function OrderDetailsPage() {
       </div>
     );
   }
+
+  const isNimbus = order.deliveryPartner === 'nimbuspost';
+  const hasNimbusShipment = Boolean(order.metadata?.nimbusShipmentId);
 
   return (
     <div className="min-h-screen mb-24">
@@ -295,6 +339,70 @@ function OrderDetailsPage() {
               </div>
             )}
           </div>
+
+          {isNimbus && (
+            <div className="bg-white border rounded-lg p-6 space-y-3">
+              <h3 className="text-lg font-bold text-[#1a2b4b] flex items-center gap-2">
+                <Truck className="w-5 h-5 text-amber-600" />
+                NimbusPost actions
+              </h3>
+              {!hasNimbusShipment && (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded p-2">
+                  Pickup and label are available after Nimbus confirms the shipment (shipment id is saved on
+                  booking).
+                </p>
+              )}
+              {nimbusNotice && (
+                <p
+                  className={`text-xs rounded p-2 ${
+                    nimbusNotice.type === 'ok'
+                      ? 'bg-green-50 text-green-800 border border-green-100'
+                      : 'bg-red-50 text-red-700 border border-red-100'
+                  }`}
+                >
+                  {nimbusNotice.text}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleNimbusPickup}
+                  disabled={!!nimbusBusy || !hasNimbusShipment}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {nimbusBusy === 'pickup' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Truck className="w-4 h-4" />
+                  )}
+                  Request pickup
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNimbusLabel}
+                  disabled={!!nimbusBusy || !hasNimbusShipment}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-800 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {nimbusBusy === 'label' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileDown className="w-4 h-4" />
+                  )}
+                  Download label
+                </button>
+              </div>
+              {order.metadata?.labelUrl && (
+                <a
+                  href={order.metadata.labelUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-sm text-blue-600 hover:underline"
+                >
+                  Open last label URL (from booking / webhook) →
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Pricing */}
           <div className="bg-white border rounded-lg p-6 space-y-4">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CloudUpload, Plus, Search, Filter, Loader2, Package, Truck, CheckCircle, Clock, AlertCircle, Eye, Download } from 'lucide-react';
+import { CloudUpload, Plus, Search, Loader2, Package, Truck, CheckCircle, Clock, AlertCircle, Eye, FileDown } from 'lucide-react';
 import orderService from '../services/order.service';
 
 const ForwardOrders = () => {
@@ -14,6 +14,8 @@ const ForwardOrders = () => {
         search: '',
         limit: 50
     });
+    const [nimbusBusy, setNimbusBusy] = useState({ orderId: null, action: null });
+    const [actionMessage, setActionMessage] = useState(null);
 
     useEffect(() => {
         fetchOrders();
@@ -54,6 +56,42 @@ const ForwardOrders = () => {
 
     const handleViewOrder = (orderNumber) => {
         navigate(`/order-details?id=${orderNumber}`);
+    };
+
+    const handleNimbusPickup = async (e, orderId) => {
+        e.stopPropagation();
+        setActionMessage(null);
+        setNimbusBusy({ orderId, action: 'pickup' });
+        try {
+            const res = await orderService.requestNimbusPickup(orderId);
+            if (res?.success) {
+                setActionMessage({ type: 'ok', text: res.message || 'Pickup requested' });
+            }
+        } catch (err) {
+            setActionMessage({
+                type: 'err',
+                text: err.response?.data?.message || err.message || 'Pickup failed'
+            });
+        } finally {
+            setNimbusBusy({ orderId: null, action: null });
+        }
+    };
+
+    const handleNimbusLabel = async (e, orderId) => {
+        e.stopPropagation();
+        setActionMessage(null);
+        setNimbusBusy({ orderId, action: 'label' });
+        try {
+            await orderService.downloadNimbusLabel(orderId);
+            setActionMessage({ type: 'ok', text: 'Label download started' });
+        } catch (err) {
+            setActionMessage({
+                type: 'err',
+                text: err.response?.data?.message || err.message || 'Label download failed'
+            });
+        } finally {
+            setNimbusBusy({ orderId: null, action: null });
+        }
     };
 
     const getStatusIcon = (status) => {
@@ -270,12 +308,55 @@ const ForwardOrders = () => {
                                         {formatDate(order.createdAt)}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => handleViewOrder(order.orderNumber)}
-                                            className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition">
-                                            <Eye className="w-4 h-4" />
-                                            View
-                                        </button>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleViewOrder(order.orderNumber)}
+                                                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition">
+                                                <Eye className="w-4 h-4" />
+                                                View
+                                            </button>
+                                            {order.deliveryPartner === 'nimbuspost' && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleNimbusPickup(e, order._id)}
+                                                        disabled={
+                                                            nimbusBusy.orderId === order._id &&
+                                                            nimbusBusy.action === 'pickup'
+                                                        }
+                                                        className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 hover:text-amber-800 disabled:opacity-50"
+                                                        title="Raise Nimbus pickup"
+                                                    >
+                                                        {nimbusBusy.orderId === order._id &&
+                                                        nimbusBusy.action === 'pickup' ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <Truck className="w-3 h-3" />
+                                                        )}
+                                                        Pickup
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleNimbusLabel(e, order._id)}
+                                                        disabled={
+                                                            nimbusBusy.orderId === order._id &&
+                                                            nimbusBusy.action === 'label'
+                                                        }
+                                                        className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-slate-900 disabled:opacity-50"
+                                                        title="Download shipping label"
+                                                    >
+                                                        {nimbusBusy.orderId === order._id &&
+                                                        nimbusBusy.action === 'label' ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <FileDown className="w-3 h-3" />
+                                                        )}
+                                                        Label
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

@@ -60,6 +60,46 @@ class OrderService {
     const response = await api.get(`/orders/${orderId}/track`);
     return response.data;
   }
+
+  /**
+   * Nimbus ship.nimbuspost.com — raise pickup for this order (uses stored shipment id).
+   */
+  async requestNimbusPickup(orderId) {
+    const response = await api.post(`/orders/${orderId}/nimbus/pickup`);
+    return response.data;
+  }
+
+  /**
+   * Nimbus ship.nimbuspost.com — download shipping label PDF.
+   */
+  async downloadNimbusLabel(orderId) {
+    const response = await api.post(
+      `/orders/${orderId}/nimbus/label`,
+      {},
+      { responseType: 'blob' }
+    );
+    const contentType = response.headers['content-type'] || '';
+    if (contentType.includes('application/json')) {
+      const text = await response.data.text();
+      return JSON.parse(text);
+    }
+    const blob = response.data;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    let filename = 'shipping-label.pdf';
+    const cd = response.headers['content-disposition'];
+    if (cd && cd.includes('filename=')) {
+      const m = cd.match(/filename="?([^";\n]+)"?/i);
+      if (m) filename = m[1];
+    }
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    return { success: true };
+  }
 }
 
 export default new OrderService();
