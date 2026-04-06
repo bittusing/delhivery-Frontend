@@ -86,15 +86,7 @@ const RateCalculatorPage = () => {
       setRateData(rateResponse);
     } catch (err) {
       console.error('Rate calculation error:', err);
-      // Set mock data for development
-      setRateData({
-        baseRate: 30.00,
-        additionalCharges: 2.50,
-        gst: 5.94,
-        dph: 0.46,
-        totalAmount: 35.50,
-        estimatedDelivery: '1 days'
-      });
+      setRateData(null);
     } finally {
       setCalculating(false);
     }

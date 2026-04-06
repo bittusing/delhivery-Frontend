@@ -236,7 +236,12 @@ const CreateOrder = () => {
       const result = await calculateRate(rateData);
       setRate(result);
     } catch (err) {
-      setRateError(err.message || 'Failed to calculate rate');
+      const apiMsg =
+        err.response?.data?.message ||
+        err.message ||
+        'Unable to load shipping rates. Please try again.';
+      setRateError(apiMsg);
+      setRate(null);
     } finally {
       setCalculatingRate(false);
     }
@@ -781,11 +786,6 @@ const CreateOrder = () => {
                   <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
                     <Info size={14} />
                     <span>Estimated Delivery: {rate.estimatedDelivery}</span>
-                  </div>
-                )}
-                {rate.note && (
-                  <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                    {rate.note}
                   </div>
                 )}
               </div>
